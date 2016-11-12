@@ -39,10 +39,6 @@ Object.prototype.set = function(prop, val){
         target = target[segs[i]];
         i++;
     }
-
-    if (this.constructor.name === 'Model'){
-        this.trigger('set:' + prop, val);
-    }
 }
 
 
@@ -55,7 +51,6 @@ let parseConfig = {
  * @param {expression} expression - expression
  * @desc
  * if can be valued, return the value,
- * if not, return keys & update function, used in data biding
  */
 const parse = (expression) => {
     if (typeof parseConfig.replacement !== 'undefined'){
@@ -66,12 +61,9 @@ const parse = (expression) => {
     //    todos.length
     //    todos.length + 1
     //    todos.length > 0 ? 'empty' : todos.length
-    let keys = new Set();
     let newExpression = expression.replace(/([^a-zA-Z0-9\._\$\[\]]|^)([a-zA-Z_\$][a-zA-Z0-9\._\$\[\]]+)(?!\s*:|'|")(?=[^a-zA-Z0-9\._\$\[\]]|$)/g, function(a,b,c){
         // for something like foo[1].bar, change it to foo.1.bar
-        keys.add(c.replace(/\[|(\]\.?)/g, '.'));
-
-        return b + 'model.data.' + c;
+        return b + 'scope.' + c;
     });
 
     if (newExpression === expression){
@@ -80,9 +72,8 @@ const parse = (expression) => {
 
 
     return newExpression === expression ? eval(expression) : {
-        keys,
         expression: newExpression,
-        update: new Function('model', 'return ' + newExpression)
+        update: new Function('scope', 'return ' + newExpression)
     };
 };
 
@@ -116,20 +107,9 @@ const parseInterpolation = (str) => {
 
     if (hasInterpolation){
         let keys = new Set();
-        segs.forEach((seg) => {
-            if (typeof seg === 'object'){
-                seg.keys.forEach(keys.add.bind(keys));
-            }
-        });
-
-        if (keys.size === 0){
-            return segs.reduce((pre, curr) => {
-                    return pre + curr;
-                }, '');
-        }
 
         return {
-            keys,
+            expression: segs.join('+'),
             update(data){
                 return segs.reduce((pre, curr) => {
                     if (typeof curr !== 'string'){
@@ -151,98 +131,143 @@ const setStyle = (node, styleObj) => {
     Object.assign(node.style, styleObj);
 }
 
+
 /**
- * bind update function to a node & model
+ * all watchers, to be dirty-checked every time
+ */
+const watchers = {};
+
+/**
+ * dijest a watcher, recursively
+ */
+const _dijest = (watcher) => {
+    if (watcher.val){
+        let newV = watcher.val();
+        if (watcher.isModel){
+            watcher.update(watcher.oldV, newV || '');
+            watcher.oldV = newV;
+        } else if (!watcher.isArray && (watcher.oldV !== newV)){
+            console.log(`dijest: ${watcher.expression}, ${watcher.oldV} => ${newV}`);
+            watcher.update(watcher.oldV, newV);
+            watcher.oldV = newV;
+        } else if (watcher.isArray && newV.length !== watcher.oldV){
+            watcher.update(watcher.oldV ? watcher.oldV : 0, newV ? newV.length : 0, watcher);
+            watcher.oldV = newV.length;
+        }
+    }
+
+    if (watcher.childs){
+        watcher.childs.forEach(_dijest);
+    }
+};
+
+/**
+ * dijest method, if expression changes, un the update
+ */
+const dijest = () => {
+    _dijest(watchers);
+};
+
+/**
+ * unwatch
+ */
+const unwatch = (watcher) => {
+    let list = watcher.parent.childs;
+    list.splice(list.indexOf(watcher), 1);
+}
+
+/**
+ * bind update function to a node & scope
  * @param {Node} node - target node
  * @param {String} type - text, attr, style, for
- * @param {Object} model - data model
- * @param {Set} evts - event list
- * @param {func} func - callback
+ * @param {Object} scope - scope
+ * @param {Object} parsed - parsed expression: expression & update
  * @param {extra} extra - any other info
  */
-const bindNode = (node, type, model, evts, func, extra) => {
-    console.log('bindNode:', node, type, model, evts, func, extra);
+const bindNode = (node, type, scope, parsed, extra) => {
+    console.log('bindNode:', node, type, scope, parsed, extra);
+    let parentWatcher = extra.parentWatcher || watchers;
+    let newWatcher = null;
     switch (type) {
     case 'text':
-        node.textContent = func(model);
-        evts.forEach((key) => model.listen('set:data.' + key, () => node.textContent = func(model)));
+        newWatcher = {
+            expression: parsed.expression,
+            val: parsed.update.bind(null, scope),
+            update: (oldV, newV) => node.textContent = newV,
+        };
         break;
     case 'attr':
-        node.setAttribute(extra.name, func(model));
-        evts.forEach((key) => model.listen('set:data.' + key, () => node.setAttribute(extra.name, func(model))));
+        newWatcher = {
+            expression: parsed.expression,
+            val: parsed.update.bind(null, scope),
+            update: (oldV, newV) => node.setAttribute(extra.name, newV),
+        };
         break;
     case 'style':
-        setStyle(node, func(model));
-        evts.forEach((key) => model.listen('set:data.' + key, () => setStyle(node, func(model))));
+        newWatcher = {
+            expression: parsed.expression,
+            val: parsed.update.bind(null, scope),
+            update: (oldV, newV) => setStyle(node, newV),
+        };
         break;
     case 'value':
-        evts.forEach((key) => model.listen('set:data.' + key, () => node.value = func(model)));
+        newWatcher = {
+            expression: parsed.expression,
+            val: parsed.update.bind(null, scope),
+            update: (oldV, newV) => node.value = newV,
+            isModel: true
+        };
         break;
     case 'for':
-        evts.forEach((key) => {
-            // add data.items to cetain data.index
-            model.listen('add:data.' + key, (data) => {
-                let list = func(model);
-
-                // update listeners
-                let i = data.index;
-                while(i < list.length - data.length){
-                    model.trigger('set:data.' + key + '.' + i);
-                    i++;
-                }
-
-                // add data.length dom, before the endAnchor
+        newWatcher = {
+            expression: parsed.expression,
+            isArray: true,
+            val: parsed.update.bind(null, scope),
+            update: (oldLength, newLength, watcher) => {
                 let endAnchor = extra.forAnchorEnd;
                 let parentNode = endAnchor.parentNode;
-                let tmpl = extra.tmpl;
-                while(i < list.length){
-                    let newNode = tmpl.cloneNode('deep');
-                    parseConfig.replacement = {
-                        from: extra.itemExpression,
-                        to: key + '[' + i + ']'
-                    };
-                    parseDom(newNode, model);
-                    parentNode.insertBefore(newNode, endAnchor);
-                    i++;
+                if (newLength > oldLength){
+                    // add data.length dom, before the endAnchor
+                    let tmpl = extra.tmpl;
+                    let i = oldLength;
+                    while(i < newLength){
+                        let newNode = tmpl.cloneNode('deep');
+                        parseConfig.replacement = {
+                            from: extra.itemExpression,
+                            to: parsed.expression.replace('scope.', '') + '[' + i + ']'
+                        };
+                        parseDom(newNode, scope, watcher);
+                        parentNode.insertBefore(newNode, endAnchor);
+                        i++;
+                    }
+                    parseConfig.replacement = undefined;
+                } else if (newLength < oldLength){
+                    let i = oldLength - 1;
+                    while(i > newLength - 1){
+                        unwatch(watcher.childs[i]);
+                        parentNode.removeChild(endAnchor.previousSibling);
+                        i--;
+                    }
                 }
-                parseConfig.replacement = undefined;
-            });
-
-            // remove data.length items at data.index
-            model.listen('delete:data.' + key, (data) => {
-                let list = func(model);
-                let endAnchor = extra.forAnchorEnd;
-                let parentNode = endAnchor.parentNode;
-
-                let i = list.length - 1 + data.length;
-                while(i > list.length - 1){
-                    // remove listeners
-                    model.unlisten('set:data.' + key + '.' + i);
-                    parentNode.removeChild(endAnchor.previousSibling);
-                    i--;
-                }
-
-                // update rest listeners
-                while(i > data.index - 1){
-                    model.trigger('set:data.' + key + '.' + i);
-                    i--;
-                }
-            });
-
-            let list = func(model);
-            model.trigger('add:data.' + key, {length: list.length, index: 0});
-        });
-
+            },
+        };
         break;
     default:
         break;
     }
+
+    if (!parentWatcher.childs){
+        parentWatcher.childs = [];
+    }
+
+    newWatcher.parent = parentWatcher;
+    parentWatcher.childs.push(newWatcher);
 };
 
 /**
  * traverse a dom, parse the attribute/text {expressions}
  */
-const parseDom = ($dom, model) => {
+const parseDom = ($dom, scope, parentWatcher) => {
     var hasForAttr = false;
     // if textNode then
     if ($dom.attributes){
@@ -257,7 +282,9 @@ const parseDom = ($dom, model) => {
                     if (typeof parsed.update === 'undefined'){
                         $dom.setStyle($dom, parsed);
                     } else {
-                        bindNode($dom, 'style', model, parsed.keys, parsed.update);
+                        bindNode($dom, 'style', scope, parsed, {
+                            parentWatcher
+                        });
                     }
                 }
             } else if (name === 'for'){
@@ -279,30 +306,32 @@ const parseDom = ($dom, model) => {
                 let listExpression = match[4];
 
                 let parseListExpression = parse(listExpression);
-                bindNode(forAnchorStart, 'for', model, parseListExpression.keys, parseListExpression.update, {
+                bindNode(forAnchorStart, 'for', scope, parseListExpression, {
                     itemExpression,
                     forAnchorEnd,
-                    tmpl
+                    tmpl,
+                    parentWatcher
                 });
                 hasForAttr = true;
             } else if (name === 'click'){
                 let parsed = parse(str);
                 $dom.addEventListener('click', ()=>{
-                    parsed.update(model);
+                    parsed.update(scope);
+                    dijest();
                 }, false);
 
             } else if (name === 'model'){
                 let parsed = parse(str);
                 $dom.addEventListener('input', ()=>{
-                    model.set(parsed.expression.replace('model.', ''), $dom.value);
+                    scope.set(parsed.expression.replace('scope.', ''), $dom.value);
                 });
-                bindNode($dom, 'value', model, parsed.keys, parsed.update);
+                bindNode($dom, 'value', scope, parsed, {parentWatcher});
             } else {
                 let parsed = parseInterpolation(str);
                 if (typeof parsed !== 'object'){
                     $dom.setAttribute(name, parsed);
                 } else {
-                    bindNode($dom, 'attr', model, parsed.keys, parsed.update)
+                    bindNode($dom, 'attr', scope, parsed, {parentWatcher});
                 }
             }
         });
@@ -316,7 +345,7 @@ const parseDom = ($dom, model) => {
             if (typeof parsed !== 'object'){
                 $dom.textContent = parsed;
             } else {
-                bindNode($dom, 'text', model, parsed.keys, parsed.update);
+                bindNode($dom, 'text', scope, parsed, {parentWatcher});
             }
         }
     }
@@ -324,121 +353,54 @@ const parseDom = ($dom, model) => {
     if (!hasForAttr){
         let start = $dom.childNodes[0];
         while(start){
-            parseDom(start, model);
+            parseDom(start, scope, parentWatcher);
             start = start.nextSibling;
         }
     }
 }
 
+
 /**
- * data model class
- * @class
+ * Controller
  */
-class Model {
-    constructor(conf){
-        this.data = {};
-        this._listeners = {};
-
-        Object.assign(this, conf);
+class Controller {
+    constructor(){
+        this.scope = {};
     }
 
-    /**
-     * trigger events
-     * @param {String} evts - multiple events seperated by space
-     * @param {Object} data - event data
-     */
-    trigger(evts, data){
-        console.log('Model.trigger:', evts);
-        let events = evts.split(/\s+/);
-        events.forEach((event) => {
-            let target = this._listeners.get(event);
-            Model.triggerListener(target, data);
-        });
-    }
-    /**
-     * trigger events
-     * @param {String} evts - multiple events seperated by space
-     * @param {Object} data - event data
-     */
-    static triggerListener(target, data){
-        for(let attr in target){
-            if (target.hasOwnProperty(attr)){
-                if (attr === 'listeners'){
-                    target[attr].forEach(listener => listener(data));
-                } else {
-                    Model.triggerListener(target[attr]);
-                }
-            }
-        }
-    }
-
-    /**
-     * add listeners to events
-     * @param {String} evts - multiple events seperated by space
-     * @param {Function} listener - callback
-     */
-    listen(evts, listener){
-        let events = evts.split(/\s+/);
-        events.forEach((event) => {
-            let key = event + '.listeners';
-            let target = this._listeners.get(key);
-            if (typeof target === 'undefined'){
-                this._listeners.set(key, [listener]);
-            } else {
-
-                target.push(listener);
-            }
-        });
-    }
-
-    /**
-     * remove listener to events
-     * @param {String} evts - multiple events seperated by space
-     * @param {Function}
-     */
-    unlisten(evts, listener){
-        let events = evts.split(/\s+/);
-        events.forEach((event) => {
-            let key = event;
-            let target = this._listeners.get(key);
-            if (typeof target !== 'undefined' && typeof target.listeners !== 'undefined'){
-                if (typeof listener !== 'undefined'){
-                    target.listeners.splice(target.listeners.indexOf(listener), 1);
-                } else {
-                    this._listeners.set(key, undefined);
-                }
-            }
-        });
+    init(){
+        parseDom(document.body, this.scope);
+        dijest();
     }
 }
 
 
 // app
-let appModel = new Model({
-    data: {
-        todos: [],
+class appController extends Controller {
+    constructor(props) {
+        super(props);
 
+        this.scope.todos = [];
+
+        this.scope.add = this.add.bind(this);
+        this.scope.remove = this.remove.bind(this);
+
+        this.init();
     }
-});
 
+    add(){
+        let item = {
+            name: this.scope.newItemName
+        };
+        this.scope.newItemName = '';
+        this.scope.todos.push(item);
+    }
 
-appModel.data.add = function(){
-    let item = {
-        name: appModel.data.newItemName
-    };
-    appModel.data.todos.push(item);
-    appModel.set('data.newItemName', '');
-    appModel.trigger('set:data.todos.length', appModel.data.todos.length);
-    appModel.trigger('add:data.todos', {index: appModel.data.todos.length - 1, length: 1});
+    remove(item){
+        let index = this.scope.todos.indexOf(item);
+        this.scope.todos.splice(index, 1);
+    }
 }
 
-appModel.data.remove = function(item){
-    let index = appModel.data.todos.indexOf(item);
-    appModel.data.todos.splice(index, 1);
-    appModel.trigger('set:data.todos.length', appModel.data.todos.length);
-    appModel.trigger('delete:data.todos', {index:index, length: 1});
-}
-
-// start app
-parseDom(document.body, appModel);
+window.app = new appController();
 
