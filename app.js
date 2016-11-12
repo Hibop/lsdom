@@ -2,9 +2,11 @@
     // rendering engine
     var Render = function(selector, data){
         var tmpl =  document.querySelector(selector).innerHTML.trim();
-        var matches = tmpl.match(/<(\w+)>(.*)<\/(\w+)>/);
+        var matches = tmpl.match(/<(\w+)>([\s\S]*)<\/(\w+)>/);
         var newItem = document.createElement(matches[1]);
-        newItem.innerHTML = matches[2].replace('{this}', data);
+        newItem.innerHTML = matches[2].replace(/\{(.*?)\}/g, function(a, key){
+            return key === 'this' ? data : data[key];
+        });
         return newItem;
     };
 
@@ -55,6 +57,10 @@
         model.listen(event, listener);
     };
 
+    View.prototype.renderTo = function($dom){
+        $dom.appendChild(this.$dom);
+    }
+
     // app
     var appModel = new Model({
         data: [],
@@ -71,7 +77,9 @@
     });
 
     var appView = new View({
-        $dom: document.querySelector('#view'),
+        $dom: Render('#js-tmpl-app', {
+            count: appModel.data.length
+        }),
         init: function(){
             this.$count = this.$dom.querySelector('.jsCount');
             this.$list = this.$dom.querySelector('.jsList');
@@ -117,4 +125,6 @@
             this.$input.value = '';
         }
     });
+
+    appView.renderTo(document.querySelector('#view'));
 })();

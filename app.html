@@ -5,15 +5,23 @@
 </head>
 <body>
 <div id="view">
-    <h1>ToDo: <span class="jsCount">0</span></h1>
+</div>
+
+<script type="js/tmpl" id="js-tmpl-app">
+<div>
+    <h1>ToDO: <span class="jsCount">{count}</span></h1>
     <ul class="jsList">
         <li class="jsListEmpty">no item</li>
-        <script type="js/tmpl" id="js-tmpl-item">
-            <li>{this}<button class="jsDelete">x</button></li>
-        </script>
     </ul>
     <p><input type="text" class="jsInput"><button class="jsAdd">add</button></p>
 </div>
+</script>
+
+
+<script type="js/tmpl" id="js-tmpl-item">
+    <li>{this}<button class="jsDelete">x</button></li>
+</script>
+
 <script src="./app.js"></script>
 </body>
 </html>
