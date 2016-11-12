@@ -1,18 +1,74 @@
-(function(){
 /**
- * parse an expression,
- * if can be valued, just return the value
+ * enable fetching object consequential peroperties
+ * example:
+ * var foo = {bar: {foo: 3}}
+ * foo.get('bar.foo') === 3
+ */
+
+Object.prototype.get = function(prop){
+    const segs = prop.split('.');
+    let result = this;
+    let i = 0;
+
+    while(result && i < segs.length){
+        result = result[segs[i]];
+        i++;
+    }
+
+    return result;
+}
+
+/**
+ * set consequential peroperty a value
+ * example:
+ * var foo = {};
+ * foo.set('foo.bar', 3);
+ * foo is now {foo: {bar: 3}}
+ */
+Object.prototype.set = function(prop, val){
+    const segs = prop.split('.');
+    let target = this;
+    let i = 0;
+    while(i < segs.length){
+        if (typeof target[segs[i]] === 'undefined'){
+            target[segs[i]] = i === segs.length - 1 ? val : {};
+        }
+        target = target[segs[i]];
+        i++;
+    }
+
+    if (this.constructor.name === 'Model'){
+        this.trigger('set:' + prop, val);
+    }
+}
+
+/**
+ * parse an expression
+ * @param {expression} expression - expression
+ * @pram {Object} replacement - do some replacement at first, used in directive 'for' .etc
+ * @desc
+ * if can be valued, return the value,
  * if not, return keys & update function, used in data biding
  */
-function parse(expression){
+
+let parseConfig = {
+    replacement: undefined
+};
+
+const parse = (expression) => {
+    if (typeof parseConfig.replacement !== 'undefined'){
+        expression = expression.replace(parseConfig.replacement.from, parseConfig.replacement.to);
+    }
     // expression example:
     //    length
     //    todos.length
     //    todos.length + 1
     //    todos.length > 0 ? 'empty' : todos.length
     let keys = new Set();
-    let newExpression = expression.replace(/([^a-zA-Z0-9\._\$]|^)([a-zA-Z_\$][a-zA-Z0-9\._\$]+)(?!\s*:|'|")([^a-zA-Z0-9\._\$]|$)/g, function(a,b,c,d){
-        keys.add(c);
+    let newExpression = expression.replace(/([^a-zA-Z0-9\._\$\[\]]|^)([a-zA-Z_\$][a-zA-Z0-9\._\$\[\]]+)(?!\s*:|'|")([^a-zA-Z0-9\._\$\[\]]|$)/g, function(a,b,c,d){
+        // for something like foo[1].bar, change it to foo.1.bar
+        keys.add(c.replace(/\[|\]/g, '.'));
+
         return b + 'data.' + c + d;
     });
 
@@ -20,17 +76,16 @@ function parse(expression){
         return eval(expression);
     }
 
-    console.log('parse', newExpression, expression);
     return newExpression === expression ? eval(expression) : {
         keys,
         update: new Function('data', 'return ' + newExpression)
     };
-}
+};
 
 /**
  * parse string with {expression}
  */
-function parseInterpolation(str){
+const parseInterpolation = (str) => {
     var i = j = 0;
     var segs = [];
     var hasInterpolation = false;
@@ -88,31 +143,99 @@ function parseInterpolation(str){
 /**
  * update style attribute of a node, by an obj
  */
-function setStyle(node, styleObj){
+const setStyle = (node, styleObj) => {
     Object.assign(node.style, styleObj);
 }
 
 /**
  * bind update function to a node & model
+ * @param {Node} node - target node
+ * @param {String} type - text, attr, style, for
+ * @param {Object} model - data model
+ * @param {Set} evts - event list
+ * @param {func} func - callback
+ * @param {extra} extra - any other info
  */
-function bindNode(node, type, model, keys, func, extra){
-    console.log('bind', node, type, model, keys);
-    if (type === 'text'){
+const bindNode = (node, type, model, evts, func, extra) => {
+    console.log('bindNode:', node, type, model, evts, func, extra);
+    switch (type) {
+    case 'text':
         node.textContent = func(model.data);
-        keys.forEach((key) => model.listen('set:' + key, () => node.textContent = func(model.data)));
-    } else if (type === 'attr'){
+        evts.forEach((key) => model.listen('set:' + key, () => node.textContent = func(model.data)));
+        break;
+    case 'attr':
         node.setAttribute(extra.name, func(model.data));
-        keys.forEach((key) => model.listen('set:' + key, () => node.setAttribute(extra.name, func(model.data))));
-    } else if (type === 'style'){
+        evts.forEach((key) => model.listen('set:' + key, () => node.setAttribute(extra.name, func(model.data))));
+        break;
+    case 'style':
         setStyle(node, func(model.data));
-        keys.forEach((key) => model.listen('set:' + key, () => setStyle(node, func(model.data))));
+        evts.forEach((key) => model.listen('set:' + key, () => setStyle(node, func(model.data))));
+        break;
+    case 'for':
+        evts.forEach((key) => {
+            // add data.items to cetain data.index
+            model.listen('add:' + key, (data) => {
+                let list = func(model.data);
+
+                // update listeners
+                let i = data.index;
+                while(i < list.length - data.length){
+                    model.trigger('set:' + key + '.' + i);
+                    i++;
+                }
+
+                // add data.length dom, before the endAnchor
+                let endAnchor = extra.forAnchorEnd;
+                let parentNode = endAnchor.parentNode;
+                let tmpl = extra.tmpl;
+                while(i < list.length){
+                    let newNode = tmpl.cloneNode('deep');
+                    parseConfig.replacement = {
+                        from: extra.itemExpression,
+                        to: key + '[' + i + ']'
+                    };
+                    parseDom(newNode, model);
+                    parentNode.insertBefore(newNode, endAnchor);
+                    i++;
+                }
+                parseConfig.replacement = undefined;
+            });
+
+            // remove data.length items at data.index
+            model.listen('delete:' + key, (data) => {
+                let list = func(model.data);
+                let endAnchor = extra.forAnchorEnd;
+                let parentNode = endAnchor.parentNode;
+
+                let i = list.length - 1 + data.length;
+                while(i > list.length - 1){
+                    // remove listeners
+                    model.unlisten('set:' + key + '.' + i);
+                    parentNode.removeChild(endAnchor.previousSibling);
+                    i--;
+                }
+
+                // update rest listeners
+                while(i > data.index - 1){
+                    model.trigger('set:' + key + '.' + i);
+                    i--;
+                }
+            });
+
+            let list = func(model.data);
+            model.trigger('add:' + key, {length: list.length, index: 0});
+        });
+
+        break;
+    default:
+        break;
     }
 };
 
 /**
  * traverse a dom, parse the attribute/text {expressions}
  */
-function parseDom($dom, model){
+const parseDom = ($dom, model) => {
     var hasForAttr = false;
     // if textNode then
     if ($dom.attributes){
@@ -131,8 +254,31 @@ function parseDom($dom, model){
                     }
                 }
             } else if (name === 'for'){
-                // TODO for
+                // add comment anchor
+                let forAnchorStart = document.createComment('for');
+                $dom.parentNode.insertBefore(forAnchorStart, $dom);
+
+                let forAnchorEnd = document.createComment('end');
+                if ($dom.nextSibling){
+                    $dom.parentNode.insertBefore(forAnchorEnd, $dom.nextSibling);
+                } else {
+                    $dom.parentNode.appendChild(forAnchorEnd);
+                }
+
+                let tmpl = $dom.parentNode.removeChild($dom);
+                tmpl.removeAttribute('for');
+                let match = /(.*)(\s+)in(\s+)(.*)/.exec(str);
+                let itemExpression = match[1];
+                let listExpression = match[4];
+
+                let parseListExpression = parse(listExpression);
+                bindNode(forAnchorStart, 'for', model, parseListExpression.keys, parseListExpression.update, {
+                    itemExpression,
+                    forAnchorEnd,
+                    tmpl
+                });
                 hasForAttr = true;
+
             } else {
                 let parsed = parseInterpolation(str);
                 if (typeof parsed !== 'object'){
@@ -158,11 +304,18 @@ function parseDom($dom, model){
     }
 
     if (!hasForAttr){
-        Array.prototype.forEach.call($dom.childNodes, (node) => parseDom(node, model));
+        let start = $dom.childNodes[0];
+        while(start){
+            parseDom(start, model);
+            start = start.nextSibling;
+        }
     }
 }
 
-// Model
+/**
+ * data model class
+ * @class
+ */
 class Model {
     constructor(conf){
         this.data = {};
@@ -173,36 +326,71 @@ class Model {
 
     /**
      * trigger events
+     * @param {String} evts - multiple events seperated by space
+     * @param {Object} data - event data
      */
     trigger(evts, data){
+        console.log('Model.trigger:', evts);
         let events = evts.split(/\s+/);
         events.forEach((event) => {
-            if (this._listeners[event]){
-                this._listeners[event].forEach((listener) => listener(data));
-            }
+            let target = this._listeners.get(event);
+            Model.triggerListener(target, data);
         });
+    }
+    /**
+     * trigger events
+     * @param {String} evts - multiple events seperated by space
+     * @param {Object} data - event data
+     */
+    static triggerListener(target, data){
+        for(let attr in target){
+            if (target.hasOwnProperty(attr)){
+                if (attr === 'listeners'){
+                    target[attr].forEach(listener => listener(data));
+                } else {
+                    Model.triggerListener(target[attr]);
+                }
+            }
+        }
     }
 
     /**
      * add listeners to events
+     * @param {String} evts - multiple events seperated by space
+     * @param {Function} listener - callback
      */
     listen(evts, listener){
         let events = evts.split(/\s+/);
         events.forEach((event) => {
-            if (!this._listeners[event]){
-                this._listeners[event] = [listener];
+            let key = event + '.listeners';
+            let target = this._listeners.get(key);
+            if (typeof target === 'undefined'){
+                this._listeners.set(key, [listener]);
             } else {
-                this._listeners[event].push(listener);
+
+                target.push(listener);
             }
         });
     }
 
     /**
-     * update a property
+     * remove listener to events
+     * @param {String} evts - multiple events seperated by space
+     * @param {Function}
      */
-    set(attr, val){
-        this.data[attr] = val;
-        this.trigger('set:' + attr, val);
+    unlisten(evts, listener){
+        let events = evts.split(/\s+/);
+        events.forEach((event) => {
+            let key = event;
+            let target = this._listeners.get(key);
+            if (typeof target !== 'undefined' && typeof target.listeners !== 'undefined'){
+                if (typeof listener !== 'undefined'){
+                    target.listeners.splice(target.listeners.indexOf(listener), 1);
+                } else {
+                    this._listeners.set(key, undefined);
+                }
+            }
+        });
     }
 }
 
@@ -211,24 +399,21 @@ class Model {
 let appModel = new Model({
     data: {
         todos: [],
-        count: 0
     },
     add(name){
-        let item = new Model({
-            data: {
-                name: name
-            }
-        });
+        let item = {
+            name: name
+        };
         this.data.todos.push(item);
-        this.trigger('add', item);
-        this.set('count', this.data.todos.length);
+        this.trigger('set:todos.length', this.data.todos.length);
+        this.trigger('add:todos', {index: this.data.todos.length - 1, length: 1});
     },
 
     remove(item){
         let index = this.data.todos.indexOf(item);
         this.data.todos.splice(index, 1);
-        this.trigger('delete', index);
-        this.set('count', this.data.todos.length);
+        this.trigger('set:todos.length', this.data.todos.length);
+        this.trigger('delete:todos', {index:index, length: 1});
     }
 
 });
@@ -237,4 +422,3 @@ let appModel = new Model({
 appModel.add('item1');
 parseDom(document.body, appModel);
 
-})();
