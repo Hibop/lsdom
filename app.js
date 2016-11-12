@@ -20,7 +20,7 @@ Object.prototype.get = function(prop){
 
 /**
  * set consequential peroperty a value
- * example:
+ * @example:
  * var foo = {};
  * foo.set('foo.bar', 3);
  * foo is now {foo: {bar: 3}}
@@ -32,7 +32,10 @@ Object.prototype.set = function(prop, val){
     while(i < segs.length){
         if (typeof target[segs[i]] === 'undefined'){
             target[segs[i]] = i === segs.length - 1 ? val : {};
+        } else if (i === segs.length - 1){
+            target[segs[i]] = val;
         }
+
         target = target[segs[i]];
         i++;
     }
@@ -42,19 +45,18 @@ Object.prototype.set = function(prop, val){
     }
 }
 
-/**
- * parse an expression
- * @param {expression} expression - expression
- * @pram {Object} replacement - do some replacement at first, used in directive 'for' .etc
- * @desc
- * if can be valued, return the value,
- * if not, return keys & update function, used in data biding
- */
+
 
 let parseConfig = {
     replacement: undefined
 };
-
+/**
+ * parse an expression
+ * @param {expression} expression - expression
+ * @desc
+ * if can be valued, return the value,
+ * if not, return keys & update function, used in data biding
+ */
 const parse = (expression) => {
     if (typeof parseConfig.replacement !== 'undefined'){
         expression = expression.replace(parseConfig.replacement.from, parseConfig.replacement.to);
@@ -65,20 +67,22 @@ const parse = (expression) => {
     //    todos.length + 1
     //    todos.length > 0 ? 'empty' : todos.length
     let keys = new Set();
-    let newExpression = expression.replace(/([^a-zA-Z0-9\._\$\[\]]|^)([a-zA-Z_\$][a-zA-Z0-9\._\$\[\]]+)(?!\s*:|'|")([^a-zA-Z0-9\._\$\[\]]|$)/g, function(a,b,c,d){
+    let newExpression = expression.replace(/([^a-zA-Z0-9\._\$\[\]]|^)([a-zA-Z_\$][a-zA-Z0-9\._\$\[\]]+)(?!\s*:|'|")(?=[^a-zA-Z0-9\._\$\[\]]|$)/g, function(a,b,c){
         // for something like foo[1].bar, change it to foo.1.bar
-        keys.add(c.replace(/\[|\]/g, '.'));
+        keys.add(c.replace(/\[|(\]\.?)/g, '.'));
 
-        return b + 'data.' + c + d;
+        return b + 'model.data.' + c;
     });
 
     if (newExpression === expression){
         return eval(expression);
     }
 
+
     return newExpression === expression ? eval(expression) : {
         keys,
-        update: new Function('data', 'return ' + newExpression)
+        expression: newExpression,
+        update: new Function('model', 'return ' + newExpression)
     };
 };
 
@@ -160,27 +164,30 @@ const bindNode = (node, type, model, evts, func, extra) => {
     console.log('bindNode:', node, type, model, evts, func, extra);
     switch (type) {
     case 'text':
-        node.textContent = func(model.data);
-        evts.forEach((key) => model.listen('set:' + key, () => node.textContent = func(model.data)));
+        node.textContent = func(model);
+        evts.forEach((key) => model.listen('set:data.' + key, () => node.textContent = func(model)));
         break;
     case 'attr':
-        node.setAttribute(extra.name, func(model.data));
-        evts.forEach((key) => model.listen('set:' + key, () => node.setAttribute(extra.name, func(model.data))));
+        node.setAttribute(extra.name, func(model));
+        evts.forEach((key) => model.listen('set:data.' + key, () => node.setAttribute(extra.name, func(model))));
         break;
     case 'style':
-        setStyle(node, func(model.data));
-        evts.forEach((key) => model.listen('set:' + key, () => setStyle(node, func(model.data))));
+        setStyle(node, func(model));
+        evts.forEach((key) => model.listen('set:data.' + key, () => setStyle(node, func(model))));
+        break;
+    case 'value':
+        evts.forEach((key) => model.listen('set:data.' + key, () => node.value = func(model)));
         break;
     case 'for':
         evts.forEach((key) => {
             // add data.items to cetain data.index
-            model.listen('add:' + key, (data) => {
-                let list = func(model.data);
+            model.listen('add:data.' + key, (data) => {
+                let list = func(model);
 
                 // update listeners
                 let i = data.index;
                 while(i < list.length - data.length){
-                    model.trigger('set:' + key + '.' + i);
+                    model.trigger('set:data.' + key + '.' + i);
                     i++;
                 }
 
@@ -202,28 +209,28 @@ const bindNode = (node, type, model, evts, func, extra) => {
             });
 
             // remove data.length items at data.index
-            model.listen('delete:' + key, (data) => {
-                let list = func(model.data);
+            model.listen('delete:data.' + key, (data) => {
+                let list = func(model);
                 let endAnchor = extra.forAnchorEnd;
                 let parentNode = endAnchor.parentNode;
 
                 let i = list.length - 1 + data.length;
                 while(i > list.length - 1){
                     // remove listeners
-                    model.unlisten('set:' + key + '.' + i);
+                    model.unlisten('set:data.' + key + '.' + i);
                     parentNode.removeChild(endAnchor.previousSibling);
                     i--;
                 }
 
                 // update rest listeners
                 while(i > data.index - 1){
-                    model.trigger('set:' + key + '.' + i);
+                    model.trigger('set:data.' + key + '.' + i);
                     i--;
                 }
             });
 
-            let list = func(model.data);
-            model.trigger('add:' + key, {length: list.length, index: 0});
+            let list = func(model);
+            model.trigger('add:data.' + key, {length: list.length, index: 0});
         });
 
         break;
@@ -278,7 +285,18 @@ const parseDom = ($dom, model) => {
                     tmpl
                 });
                 hasForAttr = true;
+            } else if (name === 'click'){
+                let parsed = parse(str);
+                $dom.addEventListener('click', ()=>{
+                    parsed.update(model);
+                }, false);
 
+            } else if (name === 'model'){
+                let parsed = parse(str);
+                $dom.addEventListener('input', ()=>{
+                    model.set(parsed.expression.replace('model.', ''), $dom.value);
+                });
+                bindNode($dom, 'value', model, parsed.keys, parsed.update);
             } else {
                 let parsed = parseInterpolation(str);
                 if (typeof parsed !== 'object'){
@@ -298,7 +316,7 @@ const parseDom = ($dom, model) => {
             if (typeof parsed !== 'object'){
                 $dom.textContent = parsed;
             } else {
-                bindNode($dom.parentNode, 'text', model, parsed.keys, parsed.update);
+                bindNode($dom, 'text', model, parsed.keys, parsed.update);
             }
         }
     }
@@ -399,26 +417,28 @@ class Model {
 let appModel = new Model({
     data: {
         todos: [],
-    },
-    add(name){
-        let item = {
-            name: name
-        };
-        this.data.todos.push(item);
-        this.trigger('set:todos.length', this.data.todos.length);
-        this.trigger('add:todos', {index: this.data.todos.length - 1, length: 1});
-    },
 
-    remove(item){
-        let index = this.data.todos.indexOf(item);
-        this.data.todos.splice(index, 1);
-        this.trigger('set:todos.length', this.data.todos.length);
-        this.trigger('delete:todos', {index:index, length: 1});
     }
-
 });
 
+
+appModel.data.add = function(){
+    let item = {
+        name: appModel.data.newItemName
+    };
+    appModel.data.todos.push(item);
+    appModel.set('data.newItemName', '');
+    appModel.trigger('set:data.todos.length', appModel.data.todos.length);
+    appModel.trigger('add:data.todos', {index: appModel.data.todos.length - 1, length: 1});
+}
+
+appModel.data.remove = function(item){
+    let index = appModel.data.todos.indexOf(item);
+    appModel.data.todos.splice(index, 1);
+    appModel.trigger('set:data.todos.length', appModel.data.todos.length);
+    appModel.trigger('delete:data.todos', {index:index, length: 1});
+}
+
 // start app
-appModel.add('item1');
 parseDom(document.body, appModel);
 
