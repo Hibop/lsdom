@@ -7,7 +7,7 @@
 	<script src="../lib/domParser.js"></script>
 	<script src="../lib/dijest.js"></script>
 	<script src="../lib/bindNode.js"></script>
-	<script src="../lib/index.js"></script>
+	<script src="../lib/controller.js"></script>
 
 </head>
 <body>
@@ -15,9 +15,9 @@
     <h1>{'To' + 'DO'}: {todos.length}</h1>
     <ul>
         <li style="{display: todos.length > 0 ? 'none' : 'inherit'}">no item</li>
-        <li for="item in todos">{item.name}<button click="remove(item)">x</button></li>
+        <todo-item for="item in todos"></todo-item>
     </ul>
-    <p><input type="text" model="newItemName"><button click="add()">add</button></p>
+    <p><add-todo todos="todos"></add-todo></p>
 </div>
 
 <script src="./index.js"></script>
