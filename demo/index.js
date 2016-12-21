@@ -1,13 +1,18 @@
 // directive todo-item
 Directive.create('todo-item', {
-    tmpl: '<li>{item.name}<button click="remove(item)">x</button></li>'
+    tmpl: '<li>{todo.name}<button click="remove(todo)">x</button></li>',
+    scope: {
+        todo: '='
+    }
 });
 
 // directive add-todo
 Directive.create('add-todo', {
-    tmpl: '<input type="text" model="newItemName"><button click="add()">add</button>'
+    tmpl: '<input type="text" model="newItemName"><button click="add()">add</button>',
+    scope: {
+        todos: '='
+    }
 });
-
 // app
 class appController extends Controller {
     constructor(props) {
