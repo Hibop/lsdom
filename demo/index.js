@@ -10,28 +10,22 @@ Directive.create('todo-item', {
 Directive.create('add-todo', {
     tmpl: '<input type="text" model="newItemName"><button click="add()">add</button>',
     scope: {
-        todos: '='
+        newItemName: '',
+        add(){
+            this.todos.push({
+                name: this.newItemName
+            });
+            this.newItemName = '';
+        }
     }
 });
 // app
 class appController extends Controller {
     constructor(props) {
         super(props);
-
         this.scope.todos = [];
-
-        this.scope.add = this.add.bind(this);
         this.scope.remove = this.remove.bind(this);
-
         this.init();
-    }
-
-    add(){
-        let item = {
-            name: this.scope.newItemName
-        };
-        this.scope.newItemName = '';
-        this.scope.todos.push(item);
     }
 
     remove(item){
