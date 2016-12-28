@@ -9,19 +9,11 @@
     <script src="../lib/directive.js"></script>
     <script src="../lib/dijest.js"></script>
 	<script src="../lib/bindNode.js"></script>
-	<script src="../lib/controller.js"></script>
-
 </head>
 <body>
-<div>
-    <h1>{'To' + 'DO'}: {todos.length}</h1>
-    <ul>
-        <li style="{display: todos.length > 0 ? 'none' : 'inherit'}">no item</li>
-        <todo-item for="item in todos" todo="item"></todo-item>
-    </ul>
-    <p><add-todo todos="todos" addItem="addItem"></add-todo></p>
-</div>
+<div id="app"></div>
 
 <script src="./index.js"></script>
 </body>
 </html>
+
