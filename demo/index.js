@@ -1,13 +1,14 @@
 // directive todo-item
-Directive.create('todo-item', {
+Component.create('todo-item', {
     tmpl: '<li>{todo.name}<button click="remove(todo)">x</button></li>',
     scopeConfig: {
         todo: '='
     }
 });
 
+
 // directive add-todo
-Directive.create('add-todo', {
+Component.create('add-todo', {
     tmpl: '<input type="text" model="newItemName"><button click="add(newIem)">add</button>',
     scopeConfig: {
         newItemName: '',
@@ -24,7 +25,7 @@ Directive.create('add-todo', {
 
 
 // directive todo app
-Directive.create('todo-app', {
+Component.create('todo-app', {
     tmpl: `<div>
             <h1>{'To' + 'DO'}: {todos.length}</h1>
             <ul>
@@ -55,4 +56,4 @@ Directive.create('todo-app', {
 
 
 // init
-Directive.render('todo-app', document.getElementById('app'));
+Component.render('todo-app', document.getElementById('app'));
