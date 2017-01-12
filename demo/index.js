@@ -1,59 +1,65 @@
-// directive todo-item
-Component.create('todo-item', {
-    tmpl: '<li>{todo.name}<button click="remove(todo)">x</button></li>',
-    scopeConfig: {
-        todo: '='
+// component todo-item
+class TodoItem extends Component {
+    constructor() {
+        super();
+        this.props = ['todo'];
+        this.tmpl = '<li>{todo.name}<button click="props.remove(props.todo)">x</button></li>'
     }
-});
+}
 
 
-// directive add-todo
-Component.create('add-todo', {
-    tmpl: '<input type="text" model="newItemName"><button click="add(newIem)">add</button>',
-    scopeConfig: {
-        newItemName: '',
-        addItem: '=',
-        add() {
-            this.addItem({
-                name: this.newItemName
-            });
+class AddTodo extends Component {
+    constructor() {
+        super();
 
-            this.newItemName = '';
+        this.props = ['addItem'];
+        this.tmpl = `<input type="text" model="scope.newItemName"><button click="add()">add</button>`;
+        this.scope = {
+            newItemName: ''
         }
     }
-});
 
+    add(){
+        this.addItem({
+            name: this.scope.newItemName
+        });
 
-// directive todo app
-Component.create('todo-app', {
-    tmpl: `<div>
-            <h1>{'To' + 'DO'}: {todos.length}</h1>
-            <ul>
-                <li style="{display: todos.length > 0 ? 'none' : 'inherit'}">no item</li>
-                <todo-item for="item in todos" todo="item"></todo-item>
-            </ul>
-            <p><add-todo todos="todos" addItem="addItem"></add-todo></p>
-        </div>`,
-    scope: {
-        todos: [],
-        remove: function(item){
-            this.remove(item);
-        },
-        addItem: function(item){
-            this.add(item);
+        this.scope.newItemName = '';
+    }
+};
+
+class TodoApp extends Component {
+    constructor(){
+        super();
+
+        this.tmpl = `<div>
+                <h1>{'To' + 'DO'}: {scope.todos.length}</h1>
+                <ul>
+                    <li style="{display: scope.todos.length > 0 ? 'none' : 'inherit'}">no item</li>
+                    <todo-item for="item in scope.todos" todo="item"></todo-item>
+                </ul>
+                <p><add-todo todos="scope.todos" addItem="addItem"></add-todo></p>
+            </div>`,
+        this.scope = {
+            todos: [],
         }
-    },
+    }
 
     remove(item){
         let index = this.scope.todos.indexOf(item);
         this.scope.todos.splice(index, 1);
-    },
+    }
 
     add(item){
         this.scope.todos.push(item);
     }
-});
+}
 
+Component.list = {
+    'todo-item': TodoItem,
+    'add-todo': AddTodo,
+    'todo-app': TodoApp
+}
 
 // init
-Component.render('todo-app', document.getElementById('app'));
+Component.render(TodoApp, document.getElementById('app'));
