@@ -2,8 +2,8 @@
 class TodoItem extends Component {
     constructor() {
         super();
-        this.props = ['todo'];
-        this.tmpl = '<li>{todo.name}<button click="props.remove(props.todo)">x</button></li>'
+        this.props = ['todo', 'remove'];
+        this.tmpl = '<li>{props.todo.name}<button click="props.remove(props.todo)">x</button></li>'
     }
 }
 
@@ -20,7 +20,7 @@ class AddTodo extends Component {
     }
 
     add(){
-        this.addItem({
+        this.props.addItem({
             name: this.scope.newItemName
         });
 
@@ -36,9 +36,9 @@ class TodoApp extends Component {
                 <h1>{'To' + 'DO'}: {scope.todos.length}</h1>
                 <ul>
                     <li style="{display: scope.todos.length > 0 ? 'none' : 'inherit'}">no item</li>
-                    <todo-item for="item in scope.todos" todo="item"></todo-item>
+                    <todo-item for="item in scope.todos" todo="item" remove="remove"></todo-item>
                 </ul>
-                <p><add-todo todos="scope.todos" addItem="addItem"></add-todo></p>
+                <p><add-todo todos="scope.todos" addItem="add"></add-todo></p>
             </div>`,
         this.scope = {
             todos: [],
@@ -46,6 +46,7 @@ class TodoApp extends Component {
     }
 
     remove(item){
+        console.log('TodoApp: remove', item.name);
         let index = this.scope.todos.indexOf(item);
         this.scope.todos.splice(index, 1);
     }
