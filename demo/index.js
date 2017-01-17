@@ -1,22 +1,28 @@
 // component todo-item
 class TodoItem extends Component {
     constructor() {
-        super();
-        this.props = ['todo', 'remove'];
-        this.tmpl = '<li>{props.todo.name}<button click="props.remove(props.todo)">x</button></li>'
+        let options = {
+            props: ['todo', 'remove'],
+            tmpl: '<li>{props.todo.name}<button click="props.remove(props.todo)">x</button></li>'
+        };
+
+        super(options);
     }
 }
 
 
 class AddTodo extends Component {
     constructor() {
-        super();
+        let options = {
+            props: ['addItem'],
+            tmpl: `<input type="text" model="scope.newItemName"><button click="add()">add</button>`,
+            scope: {
+                newItemName: ''
+            }
+        };
 
-        this.props = ['addItem'];
-        this.tmpl = `<input type="text" model="scope.newItemName"><button click="add()">add</button>`;
-        this.scope = {
-            newItemName: ''
-        }
+        super(options);
+
     }
 
     add(){
@@ -30,9 +36,8 @@ class AddTodo extends Component {
 
 class TodoApp extends Component {
     constructor(){
-        super();
-
-        this.tmpl = `<div>
+        let options = {
+            tmpl: `<div>
                 <h1>{'To' + 'DO'}: {scope.todos.length}</h1>
                 <ul>
                     <li style="{display: scope.todos.length > 0 ? 'none' : 'inherit'}">no item</li>
@@ -40,9 +45,12 @@ class TodoApp extends Component {
                 </ul>
                 <p><add-todo todos="scope.todos" addItem="add"></add-todo></p>
             </div>`,
-        this.scope = {
-            todos: [],
+            scope: {
+                todos: [{name: 'a'}],
+            }
         }
+
+        super(options);
     }
 
     remove(item){
