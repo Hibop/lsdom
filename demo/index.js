@@ -1,12 +1,17 @@
 // component todo-item
 Component.create('todo-item', {
     props: ['todo', 'remove'],
-    tmpl: '<li>{props.todo.name}<button click="props.remove(props.todo)">x</button></li>'
+    tmpl:  `<li><div class="view">
+        <input class="toggle" type="checkbox">
+        <label>{props.todo.name}</label>
+        <button class="destroy" click="props.remove(props.todo)"></button>
+        </div></li>`
 });
 
 Component.create('add-todo', {
     props: ['addItem'],
-    tmpl: `<input type="text" model="scope.newItemName"><button click="add()">add</button>`,
+    tmpl: `<input type="text" class="new-todo" placeholder="What needs to be done?" model="scope.newItemName">
+    <button click="add()">add</button>`,
     scope: () => {
         return {
             newItemName: ''
@@ -22,10 +27,9 @@ Component.create('add-todo', {
 });
 
 Component.create('todo-app', {
-    tmpl: `<div>
-            <h1>{'To' + 'DO'}: {scope.todos.length}</h1>
-            <ul>
-                <li style="{display: scope.todos.length > 0 ? 'none' : 'inherit'}">no item</li>
+    tmpl: `<div class="todoapp">
+            <h1>todos</h1>
+            <ul class="todo-list">
                 <todo-item for="item in scope.todos" todo="item" remove="remove"></todo-item>
             </ul>
             <p><add-todo todos="scope.todos" addItem="add"></add-todo></p>

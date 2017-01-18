@@ -109,7 +109,7 @@ export const bindNode = (node, type, component, parsed, extra) => {
                     let parentNode = endAnchor.parentNode;
                     let i = from;
                     let target = endAnchor.parentNode.childNodes[i];
-                    let total =  newWatcher.childs.length
+                    let total =  newWatcher.childs.length;
 
                     // update child watchers
                     while(i < total - to + from - 1){
