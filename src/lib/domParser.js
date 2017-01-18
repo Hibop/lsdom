@@ -1,5 +1,6 @@
 import { parseInterpolation, parse } from './expressionParser';
 import { bindNode } from './bindNode';
+import Component from './component';
 /**
  * traverse a dom, parse the attribute/text {expressions}
  */

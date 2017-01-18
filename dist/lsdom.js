@@ -84,6 +84,12 @@ var _expressionParser = __webpack_require__(6);
 
 var _bindNode = __webpack_require__(4);
 
+var _component2 = __webpack_require__(2);
+
+var _component3 = _interopRequireDefault(_component2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 /**
  * traverse a dom, parse the attribute/text {expressions}
  */
@@ -177,7 +183,7 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
 
     // if there are custom directives
     if ($dom.nodeType === 1) {
-        var _component = Component.list[$dom.tagName.toLowerCase()];
+        var _component = _component3.default.list[$dom.tagName.toLowerCase()];
         if (_component) {
             if (_component.tmpl) {
                 $dom.innerHTML = _component.tmpl;
@@ -190,7 +196,7 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
         var nextComponent = component;
         // if there are custom directives
         if ($dom.nodeType === 1) {
-            var nextComponentFactory = Component.list[$dom.tagName.toLowerCase()];
+            var nextComponentFactory = _component3.default.list[$dom.tagName.toLowerCase()];
             if (nextComponentFactory) {
                 nextComponent = nextComponentFactory.create();
                 if (nextComponent.tmpl) {
@@ -1021,7 +1027,9 @@ var _component2 = _interopRequireDefault(_component);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-window.Component = _component2.default;
+window.LSDom = {
+	Component: _component2.default
+};
 
 /***/ })
 /******/ ]);

@@ -1,3 +1,5 @@
 import Component from './lib/component';
 
-window.Component = Component;
+window.LSDom = {
+	Component
+}

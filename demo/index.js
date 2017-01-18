@@ -1,5 +1,5 @@
 // component todo-item
-Component.create('todo-item', {
+LSDom.Component.create('todo-item', {
     props: ['todo', 'remove'],
     tmpl:  `<li><div class="view">
         <input class="toggle" type="checkbox">
@@ -8,7 +8,7 @@ Component.create('todo-item', {
         </div></li>`
 });
 
-Component.create('add-todo', {
+LSDom.Component.create('add-todo', {
     props: ['addItem'],
     tmpl: `<input type="text" class="new-todo" placeholder="What needs to be done?" model="scope.newItemName" keypress='(e) => add(e)'>`,
     scope: () => {
@@ -28,7 +28,7 @@ Component.create('add-todo', {
     }
 });
 
-Component.create('todo-app', {
+LSDom.Component.create('todo-app', {
     tmpl: `<div class="todoapp">
             <h1>todos</h1>
             <ul class="todo-list">
@@ -55,4 +55,4 @@ Component.create('todo-app', {
 });
 
 // init
-Component.render('todo-app', document.getElementById('app'));
+LSDom.Component.render('todo-app', document.getElementById('app'));
