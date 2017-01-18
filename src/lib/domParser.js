@@ -1,7 +1,10 @@
+import { parseInterpolation, parse } from './expressionParser';
+import { bindNode } from './bindNode';
+import Component from './component';
 /**
  * traverse a dom, parse the attribute/text {expressions}
  */
-const parseDom = ($dom, component, parentWatcher) => {
+export const parseDom = ($dom, component, parentWatcher) => {
     var hasForAttr = false;
     // if textNode then
     if ($dom.attributes){
@@ -48,16 +51,18 @@ const parseDom = ($dom, component, parentWatcher) => {
                     parentWatcher
                 });
                 hasForAttr = true;
-            } else if (name === 'click'){
+            } else if (['click', 'keypress'].includes(name)){
                 let parsed = parse(str);
-                $dom.addEventListener('click', ()=>{
-                    parsed.update.call(component);
+                // suppose event handler expression are all closure functions
+                $dom.addEventListener(name, (e) => {
+                    parsed.update.call(component)(e);
                 }, false);
 
             } else if (name === 'model'){
                 let parsed = parse(str);
-                $dom.addEventListener('input', ()=>{
-                    component.set(parsed.expression.replace('component.', ''), $dom.value);
+                $dom.addEventListener('input', () => {
+                    // suppose only can set `scope.xxx` to model
+                    component.scope[parsed.expression.replace('scope.', '')] = $dom.value;
                 });
                 bindNode($dom, 'value', component, parsed, {parentWatcher});
             } else {
@@ -99,9 +104,9 @@ const parseDom = ($dom, component, parentWatcher) => {
         let nextComponent = component;
         // if there are custom directives
         if ($dom.nodeType === 1) {
-            let nextComponentClass = Component.list[$dom.tagName.toLowerCase()];
-            if (nextComponentClass){
-                nextComponent = new nextComponentClass();
+            let nextComponentFactory = Component.list[$dom.tagName.toLowerCase()];
+            if (nextComponentFactory){
+                nextComponent = nextComponentFactory.create();
                 if (nextComponent.tmpl){
                     $dom.innerHTML = nextComponent.tmpl;
                 }

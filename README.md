@@ -4,6 +4,6 @@ This is a dom library made by myself, not for public use, but only for learning 
 
 You can see the blogs here : http://tech.colla.me/tag/A_ToDo_App
 
-Oh yes, it only supports latest Chrome.
 
-Again, it is for my blog, not for real use.
+#license
+*This software is released under the MIT License, see LICENSE*
