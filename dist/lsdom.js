@@ -76,12 +76,263 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.parseDom = undefined;
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+var _expressionParser = __webpack_require__(6);
+
+var _bindNode = __webpack_require__(4);
+
+/**
+ * traverse a dom, parse the attribute/text {expressions}
+ */
+var parseDom = exports.parseDom = function parseDom($dom, component, parentWatcher) {
+    var hasForAttr = false;
+    // if textNode then
+    if ($dom.attributes) {
+        Array.prototype.forEach.call($dom.attributes, function (attr) {
+            var name = attr.nodeName;
+            var str = attr.nodeValue;
+
+            // for style, if it is object expression
+            if (name === 'style') {
+                if (str[0] === '{') {
+                    var parsed = (0, _expressionParser.parse)(str);
+                    if (typeof parsed.update === 'undefined') {
+                        $dom.setStyle($dom, parsed);
+                    } else {
+                        (0, _bindNode.bindNode)($dom, 'style', component, parsed, {
+                            parentWatcher: parentWatcher
+                        });
+                    }
+                }
+            } else if (name === 'for') {
+                // add comment anchor
+                var forAnchorStart = document.createComment('for');
+                $dom.parentNode.insertBefore(forAnchorStart, $dom);
+
+                var forAnchorEnd = document.createComment('end');
+                if ($dom.nextSibling) {
+                    $dom.parentNode.insertBefore(forAnchorEnd, $dom.nextSibling);
+                } else {
+                    $dom.parentNode.appendChild(forAnchorEnd);
+                }
+
+                var tmpl = $dom.parentNode.removeChild($dom);
+                tmpl.removeAttribute('for');
+                var match = /(.*)(\s+)in(\s+)(.*)/.exec(str);
+                var itemExpression = match[1];
+                var listExpression = match[4];
+
+                var parseListExpression = (0, _expressionParser.parse)(listExpression);
+                (0, _bindNode.bindNode)(forAnchorStart, 'for', component, parseListExpression, {
+                    itemExpression: itemExpression,
+                    forAnchorStart: forAnchorStart,
+                    forAnchorEnd: forAnchorEnd,
+                    tmpl: tmpl,
+                    parentWatcher: parentWatcher
+                });
+                hasForAttr = true;
+            } else if (name === 'click') {
+                (function () {
+                    var parsed = (0, _expressionParser.parse)(str);
+                    $dom.addEventListener('click', function () {
+                        parsed.update.call(component);
+                    }, false);
+                })();
+            } else if (name === 'model') {
+                (function () {
+                    var parsed = (0, _expressionParser.parse)(str);
+                    $dom.addEventListener('input', function () {
+                        // suppose only can set `scope.xxx` to model
+                        component.scope[parsed.expression.replace('scope.', '')] = $dom.value;
+                    });
+                    (0, _bindNode.bindNode)($dom, 'value', component, parsed, { parentWatcher: parentWatcher });
+                })();
+            } else {
+                var _parsed = (0, _expressionParser.parseInterpolation)(str);
+                if ((typeof _parsed === 'undefined' ? 'undefined' : _typeof(_parsed)) !== 'object') {
+                    $dom.setAttribute(name, _parsed);
+                } else {
+                    (0, _bindNode.bindNode)($dom, 'attr', component, _parsed, { parentWatcher: parentWatcher });
+                }
+            }
+        });
+    }
+
+    // if it is text node
+    if ($dom.nodeType === 3) {
+        var text = $dom.nodeValue.trim();
+        if (text.length) {
+            var parsed = (0, _expressionParser.parseInterpolation)($dom.nodeValue);
+            if ((typeof parsed === 'undefined' ? 'undefined' : _typeof(parsed)) !== 'object') {
+                $dom.textContent = parsed;
+            } else {
+                (0, _bindNode.bindNode)($dom, 'text', component, parsed, { parentWatcher: parentWatcher });
+            }
+        }
+    }
+
+    // if there are custom directives
+    if ($dom.nodeType === 1) {
+        var _component = Component.list[$dom.tagName.toLowerCase()];
+        if (_component) {
+            if (_component.tmpl) {
+                $dom.innerHTML = _component.tmpl;
+            }
+        }
+    }
+
+    // only traverse childnodes when not under for
+    if (!hasForAttr) {
+        var nextComponent = component;
+        // if there are custom directives
+        if ($dom.nodeType === 1) {
+            var nextComponentClass = Component.list[$dom.tagName.toLowerCase()];
+            if (nextComponentClass) {
+                nextComponent = new nextComponentClass();
+                if (nextComponent.tmpl) {
+                    $dom.innerHTML = nextComponent.tmpl;
+                }
+
+                if (nextComponent.props) {
+                    (function () {
+                        // have to bridge props
+                        var props = {};
+
+                        nextComponent.props.forEach(function (key) {
+                            Object.defineProperty(props, key, {
+                                get: function get() {
+                                    var val = component[$dom.getAttribute(key)];
+                                    if (typeof val === 'function') {
+                                        return val.bind(component);
+                                    } else {
+                                        return component[$dom.getAttribute(key)];
+                                    }
+                                },
+                                set: function set(newValue) {
+                                    console.error('direct modify parents\' data');
+                                },
+
+                                enumerable: true,
+                                configurable: true });
+                        });
+
+                        nextComponent.props = props;
+                        // if component is intermediate component, pass down the index
+                        if (component.isIntermediate) {
+                            nextComponent.__parent = component;
+                        }
+                    })();
+                }
+            }
+        }
+
+        var start = $dom.childNodes[0];
+        while (start) {
+            parseDom(start, nextComponent, parentWatcher);
+            start = start.nextSibling;
+        }
+    }
+};
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.unwatch = exports.bindWatcherOnSetter = exports.triggerWatcher = exports.Watchers = exports.setStyle = undefined;
+
+var _diff = __webpack_require__(5);
+
+/**
+ * update style attribute of a node, by an obj
+ */
+var setStyle = exports.setStyle = function setStyle(node, styleObj) {
+    Object.assign(node.style, styleObj);
+};
+
+/**
+ * all watchers, to be dirty-checked every time
+ */
+var Watchers = exports.Watchers = {
+    root: {},
+    currentWatcherStack: []
+};
+
+/**
+ * check watcher value change and update
+ */
+var triggerWatcher = exports.triggerWatcher = function triggerWatcher(watcher) {
+    console.group('triggerWatcher', watcher.expression);
+    var newV = watcher.val();
+    if (watcher.isModel) {
+        watcher.update(undefined, newV || '');
+        watcher.oldV = newV;
+    } else if (!watcher.isArray && 0 !== newV) {
+        watcher.update(0, newV);
+        watcher.oldV = newV;
+    } else if (watcher.isArray) {
+        var oldV = watcher.oldV || [];
+        (0, _diff.diff)(oldV, newV).forEach(function (patch) {
+            (patch[0] === 1 ? watcher.update.add : watcher.update.remove)(patch[1], patch[2], patch[3]);
+        });
+        watcher.oldV = newV.slice(0);
+    }
+    console.groupEnd();
+};
+
+/**
+ * add setter watchers
+ * @param {Watcher} watcher - watcher to bind
+ * @param {Array} location - watchers array in setter
+ */
+var bindWatcherOnSetter = exports.bindWatcherOnSetter = function bindWatcherOnSetter(watcher, setterLocation) {
+    watcher.locations = watcher.locations || new Set();
+    if (!watcher.locations.has(setterLocation)) {
+        watcher.locations.add(setterLocation);
+    }
+
+    if (!setterLocation.has(watcher)) {
+        setterLocation.add(watcher);
+    }
+};
+
+/**
+ * remove setter watchers
+ * @param {Watcher} watcher - watcher to bind
+ */
+var unwatch = exports.unwatch = function unwatch(watcher) {
+    var list = watcher.parent.childs;
+    list.splice(list.indexOf(watcher), 1);
+
+    watcher.locations.forEach(function (loc) {
+        loc.delete(watcher);
+    });
+};
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _domParser = __webpack_require__(4);
+var _domParser = __webpack_require__(0);
 
-var _getterSetter = __webpack_require__(6);
+var _getterSetter = __webpack_require__(7);
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -124,7 +375,7 @@ Component.instances = [];
 exports.default = Component;
 
 /***/ }),
-/* 1 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -311,7 +562,7 @@ process.umask = function () {
 };
 
 /***/ }),
-/* 2 */
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -322,9 +573,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.bindNode = undefined;
 
-var _watcher = __webpack_require__(8);
+var _watcher = __webpack_require__(1);
 
-var _domParser = __webpack_require__(4);
+var _domParser = __webpack_require__(0);
 
 /**
  * bind update function to a node & component
@@ -485,7 +736,7 @@ var bindNode = exports.bindNode = function bindNode(node, type, component, parse
 };
 
 /***/ }),
-/* 3 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -496,7 +747,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.diff = undefined;
 
-var _logger = __webpack_require__(7);
+var _logger = __webpack_require__(8);
 
 var _logger2 = _interopRequireDefault(_logger);
 
@@ -553,178 +804,7 @@ var diff = exports.diff = function diff(from, to) {
 };
 
 /***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.parseDom = undefined;
-
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-var _expressionParser = __webpack_require__(5);
-
-var _bindNode = __webpack_require__(2);
-
-/**
- * traverse a dom, parse the attribute/text {expressions}
- */
-var parseDom = exports.parseDom = function parseDom($dom, component, parentWatcher) {
-    var hasForAttr = false;
-    // if textNode then
-    if ($dom.attributes) {
-        Array.prototype.forEach.call($dom.attributes, function (attr) {
-            var name = attr.nodeName;
-            var str = attr.nodeValue;
-
-            // for style, if it is object expression
-            if (name === 'style') {
-                if (str[0] === '{') {
-                    var parsed = (0, _expressionParser.parse)(str);
-                    if (typeof parsed.update === 'undefined') {
-                        $dom.setStyle($dom, parsed);
-                    } else {
-                        (0, _bindNode.bindNode)($dom, 'style', component, parsed, {
-                            parentWatcher: parentWatcher
-                        });
-                    }
-                }
-            } else if (name === 'for') {
-                // add comment anchor
-                var forAnchorStart = document.createComment('for');
-                $dom.parentNode.insertBefore(forAnchorStart, $dom);
-
-                var forAnchorEnd = document.createComment('end');
-                if ($dom.nextSibling) {
-                    $dom.parentNode.insertBefore(forAnchorEnd, $dom.nextSibling);
-                } else {
-                    $dom.parentNode.appendChild(forAnchorEnd);
-                }
-
-                var tmpl = $dom.parentNode.removeChild($dom);
-                tmpl.removeAttribute('for');
-                var match = /(.*)(\s+)in(\s+)(.*)/.exec(str);
-                var itemExpression = match[1];
-                var listExpression = match[4];
-
-                var parseListExpression = (0, _expressionParser.parse)(listExpression);
-                (0, _bindNode.bindNode)(forAnchorStart, 'for', component, parseListExpression, {
-                    itemExpression: itemExpression,
-                    forAnchorStart: forAnchorStart,
-                    forAnchorEnd: forAnchorEnd,
-                    tmpl: tmpl,
-                    parentWatcher: parentWatcher
-                });
-                hasForAttr = true;
-            } else if (name === 'click') {
-                (function () {
-                    var parsed = (0, _expressionParser.parse)(str);
-                    $dom.addEventListener('click', function () {
-                        parsed.update.call(component);
-                    }, false);
-                })();
-            } else if (name === 'model') {
-                (function () {
-                    var parsed = (0, _expressionParser.parse)(str);
-                    $dom.addEventListener('input', function () {
-                        // suppose only can set `scope.xxx` to model
-                        component.scope[parsed.expression.replace('scope.', '')] = $dom.value;
-                    });
-                    (0, _bindNode.bindNode)($dom, 'value', component, parsed, { parentWatcher: parentWatcher });
-                })();
-            } else {
-                var _parsed = (0, _expressionParser.parseInterpolation)(str);
-                if ((typeof _parsed === 'undefined' ? 'undefined' : _typeof(_parsed)) !== 'object') {
-                    $dom.setAttribute(name, _parsed);
-                } else {
-                    (0, _bindNode.bindNode)($dom, 'attr', component, _parsed, { parentWatcher: parentWatcher });
-                }
-            }
-        });
-    }
-
-    // if it is text node
-    if ($dom.nodeType === 3) {
-        var text = $dom.nodeValue.trim();
-        if (text.length) {
-            var parsed = (0, _expressionParser.parseInterpolation)($dom.nodeValue);
-            if ((typeof parsed === 'undefined' ? 'undefined' : _typeof(parsed)) !== 'object') {
-                $dom.textContent = parsed;
-            } else {
-                (0, _bindNode.bindNode)($dom, 'text', component, parsed, { parentWatcher: parentWatcher });
-            }
-        }
-    }
-
-    // if there are custom directives
-    if ($dom.nodeType === 1) {
-        var _component = Component.list[$dom.tagName.toLowerCase()];
-        if (_component) {
-            if (_component.tmpl) {
-                $dom.innerHTML = _component.tmpl;
-            }
-        }
-    }
-
-    // only traverse childnodes when not under for
-    if (!hasForAttr) {
-        var nextComponent = component;
-        // if there are custom directives
-        if ($dom.nodeType === 1) {
-            var nextComponentClass = Component.list[$dom.tagName.toLowerCase()];
-            if (nextComponentClass) {
-                nextComponent = new nextComponentClass();
-                if (nextComponent.tmpl) {
-                    $dom.innerHTML = nextComponent.tmpl;
-                }
-
-                if (nextComponent.props) {
-                    (function () {
-                        // have to bridge props
-                        var props = {};
-
-                        nextComponent.props.forEach(function (key) {
-                            Object.defineProperty(props, key, {
-                                get: function get() {
-                                    var val = component[$dom.getAttribute(key)];
-                                    if (typeof val === 'function') {
-                                        return val.bind(component);
-                                    } else {
-                                        return component[$dom.getAttribute(key)];
-                                    }
-                                },
-                                set: function set(newValue) {
-                                    console.error('direct modify parents\' data');
-                                },
-
-                                enumerable: true,
-                                configurable: true });
-                        });
-
-                        nextComponent.props = props;
-                        // if component is intermediate component, pass down the index
-                        if (component.isIntermediate) {
-                            nextComponent.__parent = component;
-                        }
-                    })();
-                }
-            }
-        }
-
-        var start = $dom.childNodes[0];
-        while (start) {
-            parseDom(start, nextComponent, parentWatcher);
-            start = start.nextSibling;
-        }
-    }
-};
-
-/***/ }),
-/* 5 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -802,7 +882,7 @@ var parseInterpolation = exports.parseInterpolation = function parseInterpolatio
 };
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -815,7 +895,7 @@ exports.defineGetterSetter = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-var _watcher = __webpack_require__(8);
+var _watcher = __webpack_require__(1);
 
 //override Array.prototype.push
 ['push', 'pop', 'shift', 'unshift', 'splice'].forEach(function (method) {
@@ -893,7 +973,7 @@ var defineGetterSetter = exports.defineGetterSetter = function defineGetterSette
 };
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -914,87 +994,7 @@ if (typeof process !== 'undefined') {
 }
 
 exports.default = logger;
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(1)))
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.unwatch = exports.bindWatcherOnSetter = exports.triggerWatcher = exports.Watchers = exports.setStyle = undefined;
-
-var _diff = __webpack_require__(3);
-
-/**
- * update style attribute of a node, by an obj
- */
-var setStyle = exports.setStyle = function setStyle(node, styleObj) {
-    Object.assign(node.style, styleObj);
-};
-
-/**
- * all watchers, to be dirty-checked every time
- */
-var Watchers = exports.Watchers = {
-    root: {},
-    currentWatcherStack: []
-};
-
-/**
- * check watcher value change and update
- */
-var triggerWatcher = exports.triggerWatcher = function triggerWatcher(watcher) {
-    console.group('triggerWatcher', watcher.expression);
-    var newV = watcher.val();
-    if (watcher.isModel) {
-        watcher.update(undefined, newV || '');
-        watcher.oldV = newV;
-    } else if (!watcher.isArray && 0 !== newV) {
-        watcher.update(0, newV);
-        watcher.oldV = newV;
-    } else if (watcher.isArray) {
-        var oldV = watcher.oldV || [];
-        (0, _diff.diff)(oldV, newV).forEach(function (patch) {
-            (patch[0] === 1 ? watcher.update.add : watcher.update.remove)(patch[1], patch[2], patch[3]);
-        });
-        watcher.oldV = newV.slice(0);
-    }
-    console.groupEnd();
-};
-
-/**
- * add setter watchers
- * @param {Watcher} watcher - watcher to bind
- * @param {Array} location - watchers array in setter
- */
-var bindWatcherOnSetter = exports.bindWatcherOnSetter = function bindWatcherOnSetter(watcher, setterLocation) {
-    watcher.locations = watcher.locations || new Set();
-    if (!watcher.locations.has(setterLocation)) {
-        watcher.locations.add(setterLocation);
-    }
-
-    if (!setterLocation.has(watcher)) {
-        setterLocation.add(watcher);
-    }
-};
-
-/**
- * remove setter watchers
- * @param {Watcher} watcher - watcher to bind
- */
-var unwatch = exports.unwatch = function unwatch(watcher) {
-    var list = watcher.parent.childs;
-    list.splice(list.indexOf(watcher), 1);
-
-    watcher.locations.forEach(function (loc) {
-        loc.delete(watcher);
-    });
-};
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3)))
 
 /***/ }),
 /* 9 */
@@ -1003,7 +1003,7 @@ var unwatch = exports.unwatch = function unwatch(watcher) {
 "use strict";
 
 
-var _component = __webpack_require__(0);
+var _component = __webpack_require__(2);
 
 var _component2 = _interopRequireDefault(_component);
 

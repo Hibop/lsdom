@@ -1,7 +1,7 @@
 module.exports = {
     entry: './src/runtime.js',
     output: {
-        filename: './dist/lsdom.min.js'
+        filename: './dist/lsdom.js'
     },
     module: {
         rules: [
