@@ -102,9 +102,9 @@ export const parseDom = ($dom, component, parentWatcher) => {
         let nextComponent = component;
         // if there are custom directives
         if ($dom.nodeType === 1) {
-            let nextComponentClass = Component.list[$dom.tagName.toLowerCase()];
-            if (nextComponentClass){
-                nextComponent = new nextComponentClass();
+            let nextComponentFactory = Component.list[$dom.tagName.toLowerCase()];
+            if (nextComponentFactory){
+                nextComponent = nextComponentFactory.create();
                 if (nextComponent.tmpl){
                     $dom.innerHTML = nextComponent.tmpl;
                 }

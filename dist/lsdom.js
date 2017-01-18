@@ -189,9 +189,9 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
         var nextComponent = component;
         // if there are custom directives
         if ($dom.nodeType === 1) {
-            var nextComponentClass = Component.list[$dom.tagName.toLowerCase()];
-            if (nextComponentClass) {
-                nextComponent = new nextComponentClass();
+            var nextComponentFactory = Component.list[$dom.tagName.toLowerCase()];
+            if (nextComponentFactory) {
+                nextComponent = nextComponentFactory.create();
                 if (nextComponent.tmpl) {
                     $dom.innerHTML = nextComponent.tmpl;
                 }
@@ -340,28 +340,38 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
  * component class
  */
 var Component = function () {
-    function Component(options) {
+    function Component() {
         _classCallCheck(this, Component);
-
-        Object.assign(this, options);
-        // transfer scope to Scope
-        (0, _getterSetter.defineGetterSetter)(this.scope);
-
-        // debug
-        Component.instances.push(this);
     }
 
-    /**
-     * render to a dom node
-     * @param {String} name - component name
-     * @param {DOMNode} target - target dom node
-     */
-
-
     _createClass(Component, null, [{
+        key: 'create',
+        value: function create(name, options) {
+
+            Component.list[name] = {
+                create: function create() {
+                    var instance = Object.create(options);
+                    if (instance.scope) {
+                        instance.scope = instance.scope();
+                        (0, _getterSetter.defineGetterSetter)(instance.scope);
+                    }
+                    Component.instances.push(instance);
+                    return instance;
+                }
+            };
+            return options;
+        }
+
+        /**
+         * render to a dom node
+         * @param {String} name - component name
+         * @param {DOMNode} target - target dom node
+         */
+
+    }, {
         key: 'render',
-        value: function render(aComponent, target) {
-            var component = new aComponent();
+        value: function render(compnentName, target) {
+            var component = Component.list[compnentName].create();
             target.innerHTML = component.tmpl;
             (0, _domParser.parseDom)(target, component);
         }
@@ -371,6 +381,7 @@ var Component = function () {
 }();
 
 Component.instances = [];
+Component.list = {};
 
 exports.default = Component;
 

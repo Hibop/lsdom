@@ -5,14 +5,21 @@ import { defineGetterSetter } from './getterSetter';
  * component class
  */
 class Component {
-    constructor(options){
 
-        Object.assign(this, options);
-        // transfer scope to Scope
-        defineGetterSetter(this.scope);
+    static create(name, options){
 
-        // debug
-        Component.instances.push(this);
+        Component.list[name] = {
+            create(){
+                let instance = Object.create(options);
+                if (instance.scope){
+                    instance.scope = instance.scope();
+                    defineGetterSetter(instance.scope);
+                }
+                Component.instances.push(instance);
+                return instance;
+            }
+        }
+        return options;
     }
 
     /**
@@ -20,13 +27,14 @@ class Component {
      * @param {String} name - component name
      * @param {DOMNode} target - target dom node
      */
-    static render(aComponent, target){
-        let component = new aComponent();
+    static render(compnentName, target){
+        let component = Component.list[compnentName].create();
         target.innerHTML = component.tmpl;
         parseDom(target, component);
     }
 }
 
 Component.instances = [];
+Component.list = {};
 
 export default Component;
