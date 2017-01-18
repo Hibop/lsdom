@@ -4,25 +4,27 @@ Component.create('todo-item', {
     tmpl:  `<li><div class="view">
         <input class="toggle" type="checkbox">
         <label>{props.todo.name}</label>
-        <button class="destroy" click="props.remove(props.todo)"></button>
+        <button class="destroy" click="(e) => props.remove(props.todo)"></button>
         </div></li>`
 });
 
 Component.create('add-todo', {
     props: ['addItem'],
-    tmpl: `<input type="text" class="new-todo" placeholder="What needs to be done?" model="scope.newItemName">
-    <button click="add()">add</button>`,
+    tmpl: `<input type="text" class="new-todo" placeholder="What needs to be done?" model="scope.newItemName" keypress='(e) => add(e)'>`,
     scope: () => {
         return {
             newItemName: ''
         }
     },
-    add(){
-        this.props.addItem({
-            name: this.scope.newItemName
-        });
+    add(e){
+        // add when enter key is pressed
+        if (e.which === 13){
+            this.props.addItem({
+                name: this.scope.newItemName
+            });
 
-        this.scope.newItemName = '';
+            this.scope.newItemName = '';
+        }
     }
 });
 

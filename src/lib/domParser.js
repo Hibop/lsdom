@@ -50,10 +50,11 @@ export const parseDom = ($dom, component, parentWatcher) => {
                     parentWatcher
                 });
                 hasForAttr = true;
-            } else if (name === 'click'){
+            } else if (['click', 'keypress'].includes(name)){
                 let parsed = parse(str);
-                $dom.addEventListener('click', () => {
-                    parsed.update.call(component);
+                // suppose event handler expression are all closure functions
+                $dom.addEventListener(name, (e) => {
+                    parsed.update.call(component)(e);
                 }, false);
 
             } else if (name === 'model'){

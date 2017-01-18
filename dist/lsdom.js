@@ -134,11 +134,12 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
                     parentWatcher: parentWatcher
                 });
                 hasForAttr = true;
-            } else if (name === 'click') {
+            } else if (['click', 'keypress'].includes(name)) {
                 (function () {
                     var parsed = (0, _expressionParser.parse)(str);
-                    $dom.addEventListener('click', function () {
-                        parsed.update.call(component);
+                    // suppose event handler expression are all closure functions
+                    $dom.addEventListener(name, function (e) {
+                        parsed.update.call(component)(e);
                     }, false);
                 })();
             } else if (name === 'model') {
