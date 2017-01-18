@@ -1,3 +1,4 @@
+import { Watchers, bindWatcherOnSetter, triggerWatcher } from './watcher';
 //override Array.prototype.push
 ['push', 'pop', 'shift', 'unshift', 'splice'].forEach(function(method){
     let originalMethod = Array.prototype[method];
@@ -15,7 +16,7 @@
 
 
 // change all properties to getter/setter
-function defineGetterSetter(data, __parent, __key){
+export const defineGetterSetter = function(data, __parent, __key){
     let val = data;
     let type = typeof data;
     let watchersToBind = new Set();
@@ -71,6 +72,6 @@ function defineGetterSetter(data, __parent, __key){
             data.__key = __key;
         }
 
-        Object.defineProperty(data, '__isGetterSetter', {get: () => true, enumerable: false});
+        Object.defineProperty(data, '__isGetterSetter', {value: true, writable: false, enumerable: false});
     }
 }

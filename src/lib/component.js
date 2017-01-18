@@ -1,3 +1,6 @@
+import { parseDom } from './domParser';
+import { defineGetterSetter } from './getterSetter';
+
 /**
  * component class
  */
@@ -25,3 +28,5 @@ class Component {
 }
 
 Component.instances = [];
+
+export default Component;

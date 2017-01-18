@@ -1,7 +1,9 @@
+import { parseInterpolation, parse } from './expressionParser';
+import { bindNode } from './bindNode';
 /**
  * traverse a dom, parse the attribute/text {expressions}
  */
-const parseDom = ($dom, component, parentWatcher) => {
+export const parseDom = ($dom, component, parentWatcher) => {
     var hasForAttr = false;
     // if textNode then
     if ($dom.attributes){
@@ -50,14 +52,15 @@ const parseDom = ($dom, component, parentWatcher) => {
                 hasForAttr = true;
             } else if (name === 'click'){
                 let parsed = parse(str);
-                $dom.addEventListener('click', ()=>{
+                $dom.addEventListener('click', () => {
                     parsed.update.call(component);
                 }, false);
 
             } else if (name === 'model'){
                 let parsed = parse(str);
-                $dom.addEventListener('input', ()=>{
-                    component.set(parsed.expression.replace('component.', ''), $dom.value);
+                $dom.addEventListener('input', () => {
+                    // suppose only can set `scope.xxx` to model
+                    component.scope[parsed.expression.replace('scope.', '')] = $dom.value;
                 });
                 bindNode($dom, 'value', component, parsed, {parentWatcher});
             } else {

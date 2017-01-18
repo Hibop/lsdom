@@ -2,7 +2,7 @@
  * parse an expression to function
  * @param {expression} expression - expression
  */
-const parse = (expression) => {
+export const parse = (expression) => {
     // [TODO] handle unchanged expressions
     return {
         expression: expression,
@@ -13,10 +13,11 @@ const parse = (expression) => {
 /**
  * parse string with {expression}
  */
-const parseInterpolation = (str) => {
-    var i = j = 0;
-    var segs = [];
-    var hasInterpolation = false;
+export const parseInterpolation = (str) => {
+    let i = 0;
+    let j = 0;
+    let segs = [];
+    let hasInterpolation = false;
 
     while (j < str.length){
         if (str[j] === '{'){

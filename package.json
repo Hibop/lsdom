@@ -1,19 +1,24 @@
 {
   "devDependencies": {
     "babel-core": "^6.21.0",
+    "babel-loader": "^6.2.10",
     "babel-preset-es2015": "^6.18.0",
     "babel-register": "^6.18.0",
     "chai": "^3.5.0",
-    "mocha": "^3.2.0"
+    "mocha": "^3.2.0",
+    "webpack": "^2.2.0"
   },
   "name": "lsdom",
   "version": "0.1.0",
   "description": "lsdom - a dom library",
-  "main": "index.js",
+  "main": "src/index.js",
+  "browser": "dist/lsdom.js",
   "repository": "https://github.com/sunderls/lsdom.git",
   "author": "sunderls <sunderls@126.com>",
   "license": "MIT",
   "scripts": {
-    "test": "mocha --require babel-register"
+    "test": "mocha --require babel-register",
+    "build": "webpack",
+    "dev": "webpack --watch"
   }
 }

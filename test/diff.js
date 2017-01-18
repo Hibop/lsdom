@@ -1,4 +1,4 @@
-import { diff } from '../lib/diff';
+import { diff } from '../src/lib/diff';
 import { expect } from 'chai';
 
 describe('diff', () => {

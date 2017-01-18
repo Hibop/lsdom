@@ -1,3 +1,5 @@
+import { Watchers, triggerWatcher, setStyle, unwatch} from './watcher';
+import { parseDom } from './domParser';
 /**
  * bind update function to a node & component
  * @param {Node} node - target node
@@ -6,7 +8,7 @@
  * @param {Object} parsed - parsed expression: expression & update
  * @param {extra} extra - any other info
  */
-const bindNode = (node, type, component, parsed, extra) => {
+export const bindNode = (node, type, component, parsed, extra) => {
     let parentWatcher = extra.parentWatcher || Watchers.root;
     let closestArrayWatcher = extra.parentWatcher && extra.parentWatcher.isArray ? extra.parentWatcher : extra.closestArrayWatcher;
     let newWatcher = null;
