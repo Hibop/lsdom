@@ -19,22 +19,42 @@ LSDom.Component.create('add-todo', {
     add(e){
         // add when enter key is pressed
         if (e.which === 13){
-            this.props.addItem({
-                name: this.scope.newItemName
-            });
+            if (this.scope.newItemName){
+                this.props.addItem({
+                    name: this.scope.newItemName
+                });
 
-            this.scope.newItemName = '';
+                this.scope.newItemName = '';
+            }
         }
     }
 });
 
 LSDom.Component.create('todo-app', {
     tmpl: `<div class="todoapp">
+        <header>
             <h1>todos</h1>
+            <add-todo todos="scope.todos" addItem="add"></add-todo>
+        </header>
+        <section class="main">
             <ul class="todo-list">
                 <todo-item for="item in scope.todos" todo="item" remove="remove"></todo-item>
             </ul>
-            <p><add-todo todos="scope.todos" addItem="add"></add-todo></p>
+        </section>
+        <footer class="footer" style="display: block;">
+            <span class="todo-count"><strong>{{scope.todos.length}}</strong> items left</span>
+            <ul class="filters">
+                <li>
+                    <a class="selected" href="#/">All</a>
+                </li>
+                <li>
+                    <a href="#/active">Active</a>
+                </li>
+                <li>
+                    <a href="#/completed">Completed</a>
+                </li>
+            </ul>
+        </footer>
         </div>`,
 
     scope: () => {
