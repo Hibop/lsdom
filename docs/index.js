@@ -1,11 +1,14 @@
 // component todo-item
 LSDom.Component.create('todo-item', {
     props: ['todo', 'remove'],
-    tmpl:  `<li><div class="view">
-        <input class="toggle" type="checkbox">
+    tmpl:  `<li classname="props.todo.done ? 'completed' : ''"><div class="view">
+        <input class="toggle" type="checkbox" click="(e) => toggle(props.todo)">
         <label>{props.todo.name}</label>
         <button class="destroy" click="(e) => props.remove(props.todo)"></button>
-        </div></li>`
+        </div></li>`,
+    toggle(todo){
+        todo.done = !todo.done;
+    }
 });
 
 LSDom.Component.create('add-todo', {
@@ -16,12 +19,14 @@ LSDom.Component.create('add-todo', {
             newItemName: ''
         }
     },
+
     add(e){
         // add when enter key is pressed
         if (e.which === 13){
             if (this.scope.newItemName){
                 this.props.addItem({
-                    name: this.scope.newItemName
+                    name: this.scope.newItemName,
+                    done: false
                 });
 
                 this.scope.newItemName = '';
@@ -59,7 +64,8 @@ LSDom.Component.create('todo-app', {
 
     scope: () => {
         return {
-            todos: [{name: 'a'}]
+            todos: [{name: 'a', done: true}, {name: 'b', done: false}],
+            tab: 'all'
         }
     },
 

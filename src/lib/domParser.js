@@ -24,6 +24,11 @@ export const parseDom = ($dom, component, parentWatcher) => {
                         });
                     }
                 }
+            } else if (name === 'classname'){
+                let parsed = parse(str);
+                bindNode($dom, 'className', component, parsed, {
+                    parentWatcher
+                });
             } else if (name === 'for'){
                 // add comment anchor
                 let forAnchorStart = document.createComment('for');

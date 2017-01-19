@@ -1,5 +1,6 @@
 import { parseDom } from './domParser';
 import { defineGetterSetter } from './getterSetter';
+import { Watchers } from './watcher';
 
 /**
  * component class
@@ -37,7 +38,8 @@ class Component {
     static render(compnentName, target){
         let component = Component.list[compnentName].create();
         target.innerHTML = component.tmpl;
-        parseDom(target, component);
+        // seems problematic
+        parseDom(target, component, Watchers.root);
     }
 }
 

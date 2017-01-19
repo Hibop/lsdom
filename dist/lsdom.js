@@ -76,6 +76,86 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _domParser = __webpack_require__(1);
+
+var _getterSetter = __webpack_require__(7);
+
+var _watcher = __webpack_require__(2);
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * component class
+ */
+var Component = function () {
+    function Component() {
+        _classCallCheck(this, Component);
+    }
+
+    _createClass(Component, null, [{
+        key: 'create',
+
+
+        /**
+         * create a component factory
+         * @param {String} name
+         * @param {options} options - {props, scope, methods, template}
+         */
+        value: function create(name, options) {
+
+            var component = {
+                create: function create() {
+                    var instance = Object.create(options);
+                    if (instance.scope) {
+                        instance.scope = instance.scope();
+                        (0, _getterSetter.defineGetterSetter)(instance.scope);
+                    }
+                    Component.instances.push(instance);
+                    return instance;
+                }
+            };
+            Component.list[name] = component;
+
+            return component;
+        }
+
+        /**
+         * render to a dom node
+         * @param {String} name - component name
+         * @param {DOMNode} target - target dom node
+         */
+
+    }, {
+        key: 'render',
+        value: function render(compnentName, target) {
+            var component = Component.list[compnentName].create();
+            target.innerHTML = component.tmpl;
+            // seems problematic
+            (0, _domParser.parseDom)(target, component, _watcher.Watchers.root);
+        }
+    }]);
+
+    return Component;
+}();
+
+Component.instances = [];
+Component.list = {};
+
+exports.default = Component;
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
 exports.parseDom = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -84,7 +164,7 @@ var _expressionParser = __webpack_require__(6);
 
 var _bindNode = __webpack_require__(4);
 
-var _component2 = __webpack_require__(2);
+var _component2 = __webpack_require__(0);
 
 var _component3 = _interopRequireDefault(_component2);
 
@@ -113,6 +193,11 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
                         });
                     }
                 }
+            } else if (name === 'classname') {
+                var _parsed = (0, _expressionParser.parse)(str);
+                (0, _bindNode.bindNode)($dom, 'className', component, _parsed, {
+                    parentWatcher: parentWatcher
+                });
             } else if (name === 'for') {
                 // add comment anchor
                 var forAnchorStart = document.createComment('for');
@@ -158,11 +243,11 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
                     (0, _bindNode.bindNode)($dom, 'value', component, parsed, { parentWatcher: parentWatcher });
                 })();
             } else {
-                var _parsed = (0, _expressionParser.parseInterpolation)(str);
-                if ((typeof _parsed === 'undefined' ? 'undefined' : _typeof(_parsed)) !== 'object') {
-                    $dom.setAttribute(name, _parsed);
+                var _parsed2 = (0, _expressionParser.parseInterpolation)(str);
+                if ((typeof _parsed2 === 'undefined' ? 'undefined' : _typeof(_parsed2)) !== 'object') {
+                    $dom.setAttribute(name, _parsed2);
                 } else {
-                    (0, _bindNode.bindNode)($dom, 'attr', component, _parsed, { parentWatcher: parentWatcher });
+                    (0, _bindNode.bindNode)($dom, 'attr', component, _parsed2, { parentWatcher: parentWatcher });
                 }
             }
         });
@@ -245,7 +330,7 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
 };
 
 /***/ }),
-/* 1 */
+/* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -254,7 +339,7 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.unwatch = exports.bindWatcherOnSetter = exports.triggerWatcher = exports.Watchers = exports.setStyle = undefined;
+exports.addChildWatcher = exports.unwatch = exports.bindWatcherOnSetter = exports.triggerWatcher = exports.Watchers = exports.setStyle = undefined;
 
 var _diff = __webpack_require__(5);
 
@@ -273,6 +358,8 @@ var Watchers = exports.Watchers = {
     currentWatcherStack: []
 };
 
+// debug
+window.Watchers = Watchers;
 /**
  * check watcher value change and update
  */
@@ -319,78 +406,23 @@ var unwatch = exports.unwatch = function unwatch(watcher) {
     var list = watcher.parent.childs;
     list.splice(list.indexOf(watcher), 1);
 
-    watcher.locations.forEach(function (loc) {
-        loc.delete(watcher);
-    });
+    if (watcher.locations) {
+        watcher.locations.forEach(function (loc) {
+            loc.delete(watcher);
+        });
+    }
 };
 
-/***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _domParser = __webpack_require__(0);
-
-var _getterSetter = __webpack_require__(7);
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
 /**
- * component class
+ * add child watcher
  */
-var Component = function () {
-    function Component() {
-        _classCallCheck(this, Component);
+
+var addChildWatcher = exports.addChildWatcher = function addChildWatcher(parent, child) {
+    if (!parent.childs) {
+        parent.childs = [];
     }
-
-    _createClass(Component, null, [{
-        key: 'create',
-        value: function create(name, options) {
-
-            Component.list[name] = {
-                create: function create() {
-                    var instance = Object.create(options);
-                    if (instance.scope) {
-                        instance.scope = instance.scope();
-                        (0, _getterSetter.defineGetterSetter)(instance.scope);
-                    }
-                    Component.instances.push(instance);
-                    return instance;
-                }
-            };
-            return options;
-        }
-
-        /**
-         * render to a dom node
-         * @param {String} name - component name
-         * @param {DOMNode} target - target dom node
-         */
-
-    }, {
-        key: 'render',
-        value: function render(compnentName, target) {
-            var component = Component.list[compnentName].create();
-            target.innerHTML = component.tmpl;
-            (0, _domParser.parseDom)(target, component);
-        }
-    }]);
-
-    return Component;
-}();
-
-Component.instances = [];
-Component.list = {};
-
-exports.default = Component;
+    parent.childs.push(child);
+};
 
 /***/ }),
 /* 3 */
@@ -591,9 +623,11 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.bindNode = undefined;
 
-var _watcher = __webpack_require__(1);
+var _watcher = __webpack_require__(2);
 
-var _domParser = __webpack_require__(0);
+var _domParser = __webpack_require__(1);
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 /**
  * bind update function to a node & component
@@ -604,8 +638,10 @@ var _domParser = __webpack_require__(0);
  * @param {extra} extra - any other info
  */
 var bindNode = exports.bindNode = function bindNode(node, type, component, parsed, extra) {
+    var _newWatcher;
+
     var parentWatcher = extra.parentWatcher || _watcher.Watchers.root;
-    var closestArrayWatcher = extra.parentWatcher && extra.parentWatcher.isArray ? extra.parentWatcher : extra.closestArrayWatcher;
+    var closestArrayWatcher = extra.parentWatcher && extra.parentWatcher.isArray ? extra.parentWatcher : extra.parentWatcher.closestArrayWatcher ? extra.parentWatcher.closestArrayWatcher : extra.closestArrayWatcher;
     var newWatcher = null;
     switch (type) {
         case 'text':
@@ -658,81 +694,102 @@ var bindNode = exports.bindNode = function bindNode(node, type, component, parse
                 isModel: true
             };
             break;
-        case 'for':
+        case 'className':
             newWatcher = {
+                node: node,
+                component: component,
+                closestArrayWatcher: closestArrayWatcher,
+                expression: parsed.expression,
+                val: parsed.update.bind(component),
+                update: function update(oldV, newV) {
+                    this.node.className = newV;
+                },
+
+                isModel: true
+            };
+            break;
+        case 'for':
+            newWatcher = (_newWatcher = {
                 expression: parsed.expression,
                 closestArrayWatcher: closestArrayWatcher,
                 isArray: true,
                 component: component,
-                val: parsed.update.bind(component),
-                update: {
-                    add: function add(arr, from, to) {
-                        console.log('for:add ' + from + ' to ' + to);
-                        var endAnchor = extra.forAnchorEnd;
-                        var startAnchor = extra.forAnchorStart;
-                        var parentNode = endAnchor.parentNode;
-                        var tmpl = extra.tmpl;
+                val: parsed.update.bind(component)
+            }, _defineProperty(_newWatcher, 'closestArrayWatcher', closestArrayWatcher), _defineProperty(_newWatcher, 'update', {
+                add: function add(arr, from, to) {
+                    console.log('for:add ' + from + ' to ' + to);
+                    var endAnchor = extra.forAnchorEnd;
+                    var startAnchor = extra.forAnchorStart;
+                    var parentNode = endAnchor.parentNode;
+                    var tmpl = extra.tmpl;
 
-                        var i = 0;
-                        var start = startAnchor;
-                        while (i <= to) {
-                            if (i >= from) {
-                                var newNode = tmpl.cloneNode('deep');
-                                var intermediate = Object.create(component);
-                                intermediate.__index = i;
-                                Object.defineProperty(intermediate, 'item', {
-                                    get: function get() {
-                                        var result = parsed.update.call(component)[this.__index];
-                                        return result;
-                                    },
-                                    set: function set(newValue) {
-                                        console.error('direct modify parents\' data');
-                                    },
+                    var i = 0;
+                    var start = startAnchor;
+                    while (i <= to) {
+                        if (i >= from) {
+                            var newNode = tmpl.cloneNode('deep');
+                            var intermediate = Object.create(component);
+                            intermediate.__index = i;
+                            Object.defineProperty(intermediate, 'item', {
+                                get: function get() {
+                                    var result = parsed.update.call(component)[this.__index];
+                                    return result;
+                                },
+                                set: function set(newValue) {
+                                    console.error('direct modify parents\' data');
+                                },
 
-                                    enumerable: true,
-                                    configurable: true });
-                                intermediate.isIntermediate = true;
+                                enumerable: true,
+                                configurable: true });
+                            intermediate.isIntermediate = true;
 
-                                (0, _domParser.parseDom)(newNode, intermediate, newWatcher);
-                                parentNode.insertBefore(newNode, start.nextSibling || endAnchor);
-                            }
-                            start = start.nextSibling;
-                            i++;
+                            var intermediateWatcher = {
+                                childs: [],
+                                component: intermediate,
+                                parent: newWatcher,
+                                closestArrayWatcher: newWatcher
+                            };
+
+                            (0, _watcher.addChildWatcher)(newWatcher, intermediateWatcher);
+                            (0, _domParser.parseDom)(newNode, intermediate, intermediateWatcher);
+                            parentNode.insertBefore(newNode, start.nextSibling || endAnchor);
                         }
-                    },
-
-                    remove: function remove(arr, from, to) {
-                        console.group('for:remove ' + from + ' to ' + to);
-                        var endAnchor = extra.forAnchorEnd;
-                        var parentNode = endAnchor.parentNode;
-                        var i = from;
-                        var target = endAnchor.parentNode.childNodes[i];
-                        var total = newWatcher.childs.length;
-
-                        // update child watchers
-                        while (i < total - to + from - 1) {
-                            console.log('set index', i + to - from + 1, 'to', i);
-                            newWatcher.childs[i + to - from + 1].component.__parent.__index = i;
-                            i++;
-                        }
-
-                        // delete dom & unwatch
-                        i = arr.length;
-                        var start = endAnchor;
-                        while (i >= from - 1) {
-                            if (i <= to - 1) {
-                                console.log('remove dom', i);
-                                parentNode.removeChild(start.nextSibling);
-                                console.log('unwatch', i);
-                                (0, _watcher.unwatch)(newWatcher.childs[i + 1]);
-                            }
-                            start = start.previousSibling;
-                            i--;
-                        }
-                        console.groupEnd();
+                        start = start.nextSibling;
+                        i++;
                     }
+                },
+
+                remove: function remove(arr, from, to) {
+                    var endAnchor = extra.forAnchorEnd;
+                    var parentNode = endAnchor.parentNode;
+                    var i = from;
+                    var target = endAnchor.parentNode.childNodes[i];
+                    var total = newWatcher.childs.length;
+                    console.group('for:remove ' + from + ' to ' + to + ', total: ' + total);
+
+                    // update child watchers
+                    while (i < total - to + from - 1) {
+                        console.log('set index', i + to - from + 1, 'to', i);
+                        newWatcher.childs[i + to - from + 1].component.__index = i;
+                        i++;
+                    }
+
+                    // delete dom & unwatch
+                    i = arr.length;
+                    var start = endAnchor;
+                    while (i >= from - 1) {
+                        if (i <= to - 1) {
+                            console.log('remove dom', i);
+                            parentNode.removeChild(start.nextSibling);
+                            console.log('unwatch', i);
+                            (0, _watcher.unwatch)(newWatcher.childs[i + 1]);
+                        }
+                        start = start.previousSibling;
+                        i--;
+                    }
+                    console.groupEnd();
                 }
-            };
+            }), _newWatcher);
             break;
         default:
             break;
@@ -913,7 +970,7 @@ exports.defineGetterSetter = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-var _watcher = __webpack_require__(1);
+var _watcher = __webpack_require__(2);
 
 //override Array.prototype.push
 ['push', 'pop', 'shift', 'unshift', 'splice'].forEach(function (method) {
@@ -1021,7 +1078,7 @@ exports.default = logger;
 "use strict";
 
 
-var _component = __webpack_require__(2);
+var _component = __webpack_require__(0);
 
 var _component2 = _interopRequireDefault(_component);
 

@@ -15,6 +15,8 @@ export const Watchers = {
     currentWatcherStack: []
 };
 
+// debug
+window.Watchers = Watchers;
 /**
  * check watcher value change and update
  */
@@ -61,7 +63,20 @@ export const unwatch = function(watcher){
     let list = watcher.parent.childs;
     list.splice(list.indexOf(watcher), 1);
 
-    watcher.locations.forEach(loc => {
-        loc.delete(watcher);
-    });
+    if (watcher.locations){
+        watcher.locations.forEach(loc => {
+            loc.delete(watcher);
+        });
+    }
+}
+
+/**
+ * add child watcher
+ */
+
+export const addChildWatcher = function(parent, child){
+    if (!parent.childs) {
+        parent.childs = [];
+    }
+    parent.childs.push(child);
 }
