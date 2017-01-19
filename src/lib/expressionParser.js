@@ -18,7 +18,6 @@ export const parseInterpolation = (str) => {
     let j = 0;
     let segs = [];
     let hasInterpolation = false;
-
     while (j < str.length){
         if (str[j] === '{'){
             hasInterpolation = true;
@@ -51,12 +50,18 @@ export const parseInterpolation = (str) => {
             }, ''),
 
             update(){
-                return segs.reduce((pre, curr) => {
-                    if (typeof curr !== 'string'){
-                        return pre + curr.update.call(this);
-                    }
-                    return pre + curr;
-                }, '');
+                // if only 1 interpolation, this prevent returning string
+                // such as "true" "false"
+                if (segs.length === 1 && hasInterpolation) {
+                    return segs[0].update.call(this);
+                } else {
+                    return segs.reduce((pre, curr) => {
+                        if (typeof curr !== 'string'){
+                            return pre + curr.update.call(this);
+                        }
+                        return pre + curr;
+                    }, '');
+                }
             }
         }
     } else {

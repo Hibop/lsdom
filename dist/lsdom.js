@@ -247,7 +247,8 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
                 if ((typeof _parsed2 === 'undefined' ? 'undefined' : _typeof(_parsed2)) !== 'object') {
                     $dom.setAttribute(name, _parsed2);
                 } else {
-                    (0, _bindNode.bindNode)($dom, 'attr', component, _parsed2, { parentWatcher: parentWatcher });
+                    var _match = name.match(/(\w+-)?(\w+)/);
+                    (0, _bindNode.bindNode)($dom, 'attr', component, _parsed2, { parentWatcher: parentWatcher, name: _match[2] });
                 }
             }
         });
@@ -664,7 +665,11 @@ var bindNode = exports.bindNode = function bindNode(node, type, component, parse
                 expression: parsed.expression,
                 val: parsed.update.bind(component),
                 update: function update(oldV, newV) {
-                    this.node.setAttribute(extra.name, newV);
+                    if (newV) {
+                        this.node.setAttribute(extra.name, newV);
+                    } else {
+                        this.node.removeAttribute(extra.name);
+                    }
                 }
             };
             break;
@@ -908,7 +913,6 @@ var parseInterpolation = exports.parseInterpolation = function parseInterpolatio
     var j = 0;
     var segs = [];
     var hasInterpolation = false;
-
     while (j < str.length) {
         if (str[j] === '{') {
             hasInterpolation = true;
@@ -943,12 +947,18 @@ var parseInterpolation = exports.parseInterpolation = function parseInterpolatio
             update: function update() {
                 var _this = this;
 
-                return segs.reduce(function (pre, curr) {
-                    if (typeof curr !== 'string') {
-                        return pre + curr.update.call(_this);
-                    }
-                    return pre + curr;
-                }, '');
+                // if only 1 interpolation, this prevent returning string
+                // such as "true" "false"
+                if (segs.length === 1 && hasInterpolation) {
+                    return segs[0].update.call(this);
+                } else {
+                    return segs.reduce(function (pre, curr) {
+                        if (typeof curr !== 'string') {
+                            return pre + curr.update.call(_this);
+                        }
+                        return pre + curr;
+                    }, '');
+                }
             }
         };
     } else {

@@ -2,7 +2,7 @@
 LSDom.Component.create('todo-item', {
     props: ['todo', 'remove'],
     tmpl:  `<li classname="props.todo.done ? 'completed' : ''"><div class="view">
-        <input class="toggle" type="checkbox" click="(e) => toggle(props.todo)">
+        <input class="toggle" type="checkbox" click="(e) => toggle(props.todo)" ls-checked="{props.todo.done}">
         <label>{props.todo.name}</label>
         <button class="destroy" click="(e) => props.remove(props.todo)"></button>
         </div></li>`,

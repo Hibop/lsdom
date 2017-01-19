@@ -35,7 +35,11 @@ export const bindNode = (node, type, component, parsed, extra) => {
             expression: parsed.expression,
             val: parsed.update.bind(component),
             update(oldV, newV){
-                this.node.setAttribute(extra.name, newV);
+                if (newV){
+                    this.node.setAttribute(extra.name, newV);
+                } else {
+                    this.node.removeAttribute(extra.name);
+                }
             }
         };
         break;

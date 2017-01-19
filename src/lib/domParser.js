@@ -75,7 +75,8 @@ export const parseDom = ($dom, component, parentWatcher) => {
                 if (typeof parsed !== 'object'){
                     $dom.setAttribute(name, parsed);
                 } else {
-                    bindNode($dom, 'attr', component, parsed, {parentWatcher});
+                    let match = name.match(/(\w+-)?(\w+)/);
+                    bindNode($dom, 'attr', component, parsed, {parentWatcher, name: match[2]});
                 }
             }
         });
