@@ -6,9 +6,14 @@ import { defineGetterSetter } from './getterSetter';
  */
 class Component {
 
+    /**
+     * create a component factory
+     * @param {String} name
+     * @param {options} options - {props, scope, methods, template}
+     */
     static create(name, options){
 
-        Component.list[name] = {
+        let component = {
             create(){
                 let instance = Object.create(options);
                 if (instance.scope){
@@ -19,7 +24,9 @@ class Component {
                 return instance;
             }
         }
-        return options;
+        Component.list[name] = component;
+
+        return component;
     }
 
     /**
