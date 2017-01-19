@@ -8,6 +8,8 @@ You can see the blogs here : http://tech.colla.me/tag/A_ToDo_App
 
 # demo
 
+> css is from http://todomvc.com/
+
 https://sunderls.github.io/lsdom/
 
 
