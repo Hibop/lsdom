@@ -14,6 +14,20 @@ class Component {
      */
     static create(name, options){
 
+        // transform computed property
+        if (options.computed){
+            Object.keys(options.computed).forEach(key => {
+                let func = options.computed[key];
+                delete options.computed[key];
+
+                Object.defineProperty(options, key, {
+                    get: func,
+                    enumerable : true,
+                    configurable : true
+                });
+            });
+        }
+
         let component = {
             create(){
                 let instance = Object.create(options);
@@ -25,6 +39,7 @@ class Component {
                 return instance;
             }
         }
+
         Component.list[name] = component;
 
         return component;

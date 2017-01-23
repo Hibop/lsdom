@@ -43,7 +43,7 @@ LSDom.Component.create('todo-app', {
         </header>
         <section class="main">
             <ul class="todo-list">
-                <todo-item for="item in scope.todos" todo="item" remove="remove"></todo-item>
+                <todo-item for="item in todosFiltered" todo="item" remove="remove"></todo-item>
             </ul>
         </section>
         <footer class="footer" style="display: block;">
@@ -65,8 +65,17 @@ LSDom.Component.create('todo-app', {
     scope: () => {
         return {
             todos: [{name: 'a', done: true}, {name: 'b', done: false}],
-            tab: 'all'
+            tab: 'completed'
         }
+    },
+
+    computed: {
+        todosFiltered(){
+            return this.scope.todos.filter(item => this.scope.tab === 'all'
+                || (this.scope.tab === 'active' && item.done === false)
+                || (this.scope.tab === 'completed' && item.done === true)
+            );
+        },
     },
 
     remove(item){

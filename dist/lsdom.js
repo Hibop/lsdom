@@ -76,14 +76,110 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.addChildWatcher = exports.unwatch = exports.bindWatcherOnSetter = exports.triggerWatcher = exports.Watchers = exports.setStyle = undefined;
+
+var _diff = __webpack_require__(5);
+
+/**
+ * update style attribute of a node, by an obj
+ */
+var setStyle = exports.setStyle = function setStyle(node, styleObj) {
+    Object.assign(node.style, styleObj);
+};
+
+/**
+ * all watchers, to be dirty-checked every time
+ */
+var Watchers = exports.Watchers = {
+    root: {},
+    currentWatcherStack: []
+};
+
+// debug
+window.Watchers = Watchers;
+/**
+ * check watcher value change and update
+ */
+var triggerWatcher = exports.triggerWatcher = function triggerWatcher(watcher) {
+    console.group('triggerWatcher', watcher.expression);
+    var newV = watcher.val();
+    if (watcher.isModel) {
+        watcher.update(undefined, newV || '');
+        watcher.oldV = newV;
+    } else if (!watcher.isArray && 0 !== newV) {
+        watcher.update(0, newV);
+        watcher.oldV = newV;
+    } else if (watcher.isArray) {
+        var oldV = watcher.oldV || [];
+        (0, _diff.diff)(oldV, newV).forEach(function (patch) {
+            (patch[0] === 1 ? watcher.update.add : watcher.update.remove)(patch[1], patch[2], patch[3]);
+        });
+        watcher.oldV = newV.slice(0);
+    }
+    console.groupEnd();
+};
+
+/**
+ * add setter watchers
+ * @param {Watcher} watcher - watcher to bind
+ * @param {Array} location - watchers array in setter
+ */
+var bindWatcherOnSetter = exports.bindWatcherOnSetter = function bindWatcherOnSetter(watcher, setterLocation) {
+    watcher.locations = watcher.locations || new Set();
+    if (!watcher.locations.has(setterLocation)) {
+        console.log('bind ' + watcher.expression + ' to ' + setterLocation);
+        watcher.locations.add(setterLocation);
+    }
+
+    if (!setterLocation.has(watcher)) {
+        setterLocation.add(watcher);
+    }
+};
+
+/**
+ * remove setter watchers
+ * @param {Watcher} watcher - watcher to bind
+ */
+var unwatch = exports.unwatch = function unwatch(watcher) {
+    var list = watcher.parent.childs;
+    list.splice(list.indexOf(watcher), 1);
+
+    if (watcher.locations) {
+        watcher.locations.forEach(function (loc) {
+            loc.delete(watcher);
+        });
+    }
+};
+
+/**
+ * add child watcher
+ */
+
+var addChildWatcher = exports.addChildWatcher = function addChildWatcher(parent, child) {
+    if (!parent.childs) {
+        parent.childs = [];
+    }
+    parent.childs.push(child);
+};
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _domParser = __webpack_require__(1);
+var _domParser = __webpack_require__(2);
 
 var _getterSetter = __webpack_require__(7);
 
-var _watcher = __webpack_require__(2);
+var _watcher = __webpack_require__(0);
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -106,6 +202,20 @@ var Component = function () {
          */
         value: function create(name, options) {
 
+            // transform computed property
+            if (options.computed) {
+                Object.keys(options.computed).forEach(function (key) {
+                    var func = options.computed[key];
+                    delete options.computed[key];
+
+                    Object.defineProperty(options, key, {
+                        get: func,
+                        enumerable: true,
+                        configurable: true
+                    });
+                });
+            }
+
             var component = {
                 create: function create() {
                     var instance = Object.create(options);
@@ -117,6 +227,7 @@ var Component = function () {
                     return instance;
                 }
             };
+
             Component.list[name] = component;
 
             return component;
@@ -147,7 +258,7 @@ Component.list = {};
 exports.default = Component;
 
 /***/ }),
-/* 1 */
+/* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -164,7 +275,7 @@ var _expressionParser = __webpack_require__(6);
 
 var _bindNode = __webpack_require__(4);
 
-var _component2 = __webpack_require__(0);
+var _component2 = __webpack_require__(1);
 
 var _component3 = _interopRequireDefault(_component2);
 
@@ -328,101 +439,6 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
             start = start.nextSibling;
         }
     }
-};
-
-/***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.addChildWatcher = exports.unwatch = exports.bindWatcherOnSetter = exports.triggerWatcher = exports.Watchers = exports.setStyle = undefined;
-
-var _diff = __webpack_require__(5);
-
-/**
- * update style attribute of a node, by an obj
- */
-var setStyle = exports.setStyle = function setStyle(node, styleObj) {
-    Object.assign(node.style, styleObj);
-};
-
-/**
- * all watchers, to be dirty-checked every time
- */
-var Watchers = exports.Watchers = {
-    root: {},
-    currentWatcherStack: []
-};
-
-// debug
-window.Watchers = Watchers;
-/**
- * check watcher value change and update
- */
-var triggerWatcher = exports.triggerWatcher = function triggerWatcher(watcher) {
-    console.group('triggerWatcher', watcher.expression);
-    var newV = watcher.val();
-    if (watcher.isModel) {
-        watcher.update(undefined, newV || '');
-        watcher.oldV = newV;
-    } else if (!watcher.isArray && 0 !== newV) {
-        watcher.update(0, newV);
-        watcher.oldV = newV;
-    } else if (watcher.isArray) {
-        var oldV = watcher.oldV || [];
-        (0, _diff.diff)(oldV, newV).forEach(function (patch) {
-            (patch[0] === 1 ? watcher.update.add : watcher.update.remove)(patch[1], patch[2], patch[3]);
-        });
-        watcher.oldV = newV.slice(0);
-    }
-    console.groupEnd();
-};
-
-/**
- * add setter watchers
- * @param {Watcher} watcher - watcher to bind
- * @param {Array} location - watchers array in setter
- */
-var bindWatcherOnSetter = exports.bindWatcherOnSetter = function bindWatcherOnSetter(watcher, setterLocation) {
-    watcher.locations = watcher.locations || new Set();
-    if (!watcher.locations.has(setterLocation)) {
-        watcher.locations.add(setterLocation);
-    }
-
-    if (!setterLocation.has(watcher)) {
-        setterLocation.add(watcher);
-    }
-};
-
-/**
- * remove setter watchers
- * @param {Watcher} watcher - watcher to bind
- */
-var unwatch = exports.unwatch = function unwatch(watcher) {
-    var list = watcher.parent.childs;
-    list.splice(list.indexOf(watcher), 1);
-
-    if (watcher.locations) {
-        watcher.locations.forEach(function (loc) {
-            loc.delete(watcher);
-        });
-    }
-};
-
-/**
- * add child watcher
- */
-
-var addChildWatcher = exports.addChildWatcher = function addChildWatcher(parent, child) {
-    if (!parent.childs) {
-        parent.childs = [];
-    }
-    parent.childs.push(child);
 };
 
 /***/ }),
@@ -624,9 +640,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.bindNode = undefined;
 
-var _watcher = __webpack_require__(2);
+var _watcher = __webpack_require__(0);
 
-var _domParser = __webpack_require__(1);
+var _domParser = __webpack_require__(2);
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
@@ -980,7 +996,7 @@ exports.defineGetterSetter = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-var _watcher = __webpack_require__(2);
+var _watcher = __webpack_require__(0);
 
 //override Array.prototype.push
 ['push', 'pop', 'shift', 'unshift', 'splice'].forEach(function (method) {
@@ -1020,7 +1036,6 @@ var defineGetterSetter = exports.defineGetterSetter = function defineGetterSette
                             // if data is array, then closestArrayWatcher must be the For
                             // and prevent gettersetter under For
                             if (Array.isArray(val) && closestArrayWatcher && closestArrayWatcher !== currWatcher) {} else {
-                                console.log('bind ' + currWatcher.expression + ' to ' + key);
                                 (0, _watcher.bindWatcherOnSetter)(currWatcher, watchersToBind);
                             }
                         }
@@ -1088,7 +1103,7 @@ exports.default = logger;
 "use strict";
 
 
-var _component = __webpack_require__(0);
+var _component = __webpack_require__(1);
 
 var _component2 = _interopRequireDefault(_component);
 

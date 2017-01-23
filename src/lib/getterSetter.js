@@ -39,7 +39,6 @@ export const defineGetterSetter = function(data, __parent, __key){
                             // and prevent gettersetter under For
                             if (Array.isArray(val) && closestArrayWatcher && closestArrayWatcher !== currWatcher){
                             } else {
-                                console.log(`bind ${currWatcher.expression} to ${key}`);
                                 bindWatcherOnSetter(currWatcher, watchersToBind);
                             }
                         }

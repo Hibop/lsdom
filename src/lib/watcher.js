@@ -47,6 +47,7 @@ export const triggerWatcher = function(watcher){
 export const bindWatcherOnSetter = function(watcher, setterLocation){
     watcher.locations = watcher.locations || new Set();
     if (!watcher.locations.has(setterLocation)){
+        console.log(`bind ${watcher.expression} to ${setterLocation}`);
         watcher.locations.add(setterLocation);
     }
 
