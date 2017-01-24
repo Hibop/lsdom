@@ -1,4 +1,4 @@
-import { Watchers, triggerWatcher, setStyle, unwatch} from './watcher';
+import { Watchers, triggerWatcher, setStyle, unwatch, addChildWatcher} from './watcher';
 import { parseDom } from './domParser';
 /**
  * bind update function to a node & component
@@ -10,7 +10,9 @@ import { parseDom } from './domParser';
  */
 export const bindNode = (node, type, component, parsed, extra) => {
     let parentWatcher = extra.parentWatcher || Watchers.root;
-    let closestArrayWatcher = extra.parentWatcher && extra.parentWatcher.isArray ? extra.parentWatcher : extra.closestArrayWatcher;
+    let closestArrayWatcher = extra.parentWatcher && extra.parentWatcher.isArray ?
+        extra.parentWatcher : extra.parentWatcher.closestArrayWatcher ? extra.parentWatcher.closestArrayWatcher :
+            extra.closestArrayWatcher;
     let newWatcher = null;
     switch (type) {
     case 'text':
@@ -33,7 +35,11 @@ export const bindNode = (node, type, component, parsed, extra) => {
             expression: parsed.expression,
             val: parsed.update.bind(component),
             update(oldV, newV){
-                this.node.setAttribute(extra.name, newV);
+                if (newV){
+                    this.node.setAttribute(extra.name, newV);
+                } else {
+                    this.node.removeAttribute(extra.name);
+                }
             }
         };
         break;
@@ -62,6 +68,19 @@ export const bindNode = (node, type, component, parsed, extra) => {
             isModel: true
         };
         break;
+    case 'className':
+        newWatcher = {
+            node,
+            component,
+            closestArrayWatcher,
+            expression: parsed.expression,
+            val: parsed.update.bind(component),
+            update(oldV, newV){
+                this.node.className = newV;
+            },
+            isModel: true
+        };
+        break;
     case 'for':
         newWatcher = {
             expression: parsed.expression,
@@ -69,6 +88,7 @@ export const bindNode = (node, type, component, parsed, extra) => {
             isArray: true,
             component,
             val: parsed.update.bind(component),
+            closestArrayWatcher,
             update: {
                 add: (arr, from, to) => {
                     console.log(`for:add ${from} to ${to}`);
@@ -95,26 +115,43 @@ export const bindNode = (node, type, component, parsed, extra) => {
                                 );
                             intermediate.isIntermediate = true;
 
-                            parseDom(newNode, intermediate, newWatcher);
+                            let intermediateWatcher = {
+                                childs: [],
+                                component: intermediate,
+                                parent: newWatcher,
+                                closestArrayWatcher: newWatcher
+                            };
+
+                            addChildWatcher(newWatcher, intermediateWatcher, i);
+                            parseDom(newNode, intermediate, intermediateWatcher);
                             parentNode.insertBefore(newNode, start.nextSibling || endAnchor);
                         }
                         start = start.nextSibling;
                         i++;
                     }
+
+                    // adjust watchers after insertions
+                    i = to + 1;
+                    while (i < arr.length){
+                        console.log('set index', newWatcher.childs[i].component.__index, 'to',
+                            newWatcher.childs[i].component.__index + to - from + 1);
+                        newWatcher.childs[i].component.__index += to - from + 1;
+                        i += 1;
+                    }
                 },
 
                 remove: (arr, from, to) => {
-                    console.group(`for:remove ${from} to ${to}`);
                     let endAnchor = extra.forAnchorEnd;
                     let parentNode = endAnchor.parentNode;
                     let i = from;
                     let target = endAnchor.parentNode.childNodes[i];
                     let total =  newWatcher.childs.length;
+                    console.group(`for:remove ${from} to ${to}, total: ${total}`);
 
                     // update child watchers
                     while(i < total - to + from - 1){
                         console.log('set index', i + to - from + 1, 'to', i);
-                        newWatcher.childs[i + to - from + 1].component.__parent.__index = i;
+                        newWatcher.childs[i + to - from + 1].component.__index = i;
                         i++;
                     }
 
@@ -123,9 +160,9 @@ export const bindNode = (node, type, component, parsed, extra) => {
                     let start = endAnchor;
                     while (i >= from - 1){
                         if (i <= to - 1){
-                            console.log('remove dom', i);
+                            console.log('remove dom', i + 1);
                             parentNode.removeChild(start.nextSibling);
-                            console.log('unwatch', i);
+                            console.log('unwatch', i + 1);
                             unwatch(newWatcher.childs[i + 1]);
                         }
                         start = start.previousSibling;

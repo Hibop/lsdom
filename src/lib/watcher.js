@@ -15,6 +15,8 @@ export const Watchers = {
     currentWatcherStack: []
 };
 
+// debug
+window.Watchers = Watchers;
 /**
  * check watcher value change and update
  */
@@ -45,6 +47,7 @@ export const triggerWatcher = function(watcher){
 export const bindWatcherOnSetter = function(watcher, setterLocation){
     watcher.locations = watcher.locations || new Set();
     if (!watcher.locations.has(setterLocation)){
+        console.log(`bind ${watcher.expression} to ${setterLocation}`);
         watcher.locations.add(setterLocation);
     }
 
@@ -58,10 +61,36 @@ export const bindWatcherOnSetter = function(watcher, setterLocation){
  * @param {Watcher} watcher - watcher to bind
  */
 export const unwatch = function(watcher){
+    console.log('unwatch', watcher);
     let list = watcher.parent.childs;
     list.splice(list.indexOf(watcher), 1);
 
-    watcher.locations.forEach(loc => {
-        loc.delete(watcher);
-    });
+    if (watcher.locations){
+        watcher.locations.forEach(loc => {
+            loc.delete(watcher);
+        });
+    }
+
+    if (watcher.childs){
+        // avoid using forEach, since deleting happens in unwatch
+        // babel transform for ... of to iterator.
+        // use a new array.
+        watcher.childs.slice(0).forEach(unwatch);
+    }
+}
+
+/**
+ * add child watcher
+ */
+
+export const addChildWatcher = function(parent, child, index = null){
+    if (!parent.childs) {
+        parent.childs = [];
+    }
+
+    if (index){
+        parent.childs.push(child);
+    } else {
+        parent.childs.splice(index, 0, child)
+    }
 }

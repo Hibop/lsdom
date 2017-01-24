@@ -76,6 +76,218 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.addChildWatcher = exports.unwatch = exports.bindWatcherOnSetter = exports.triggerWatcher = exports.Watchers = exports.setStyle = undefined;
+
+var _diff = __webpack_require__(5);
+
+/**
+ * update style attribute of a node, by an obj
+ */
+var setStyle = exports.setStyle = function setStyle(node, styleObj) {
+    Object.assign(node.style, styleObj);
+};
+
+/**
+ * all watchers, to be dirty-checked every time
+ */
+var Watchers = exports.Watchers = {
+    root: {},
+    currentWatcherStack: []
+};
+
+// debug
+window.Watchers = Watchers;
+/**
+ * check watcher value change and update
+ */
+var triggerWatcher = exports.triggerWatcher = function triggerWatcher(watcher) {
+    console.group('triggerWatcher', watcher.expression);
+    var newV = watcher.val();
+    if (watcher.isModel) {
+        watcher.update(undefined, newV || '');
+        watcher.oldV = newV;
+    } else if (!watcher.isArray && 0 !== newV) {
+        watcher.update(0, newV);
+        watcher.oldV = newV;
+    } else if (watcher.isArray) {
+        var oldV = watcher.oldV || [];
+        (0, _diff.diff)(oldV, newV).forEach(function (patch) {
+            (patch[0] === 1 ? watcher.update.add : watcher.update.remove)(patch[1], patch[2], patch[3]);
+        });
+        watcher.oldV = newV.slice(0);
+    }
+    console.groupEnd();
+};
+
+/**
+ * add setter watchers
+ * @param {Watcher} watcher - watcher to bind
+ * @param {Array} location - watchers array in setter
+ */
+var bindWatcherOnSetter = exports.bindWatcherOnSetter = function bindWatcherOnSetter(watcher, setterLocation) {
+    watcher.locations = watcher.locations || new Set();
+    if (!watcher.locations.has(setterLocation)) {
+        console.log('bind ' + watcher.expression + ' to ' + setterLocation);
+        watcher.locations.add(setterLocation);
+    }
+
+    if (!setterLocation.has(watcher)) {
+        setterLocation.add(watcher);
+    }
+};
+
+/**
+ * remove setter watchers
+ * @param {Watcher} watcher - watcher to bind
+ */
+var unwatch = exports.unwatch = function unwatch(watcher) {
+    console.log('unwatch', watcher);
+    var list = watcher.parent.childs;
+    list.splice(list.indexOf(watcher), 1);
+
+    if (watcher.locations) {
+        watcher.locations.forEach(function (loc) {
+            loc.delete(watcher);
+        });
+    }
+
+    if (watcher.childs) {
+        // avoid using forEach, since deleting happens in unwatch
+        // babel transform for ... of to iterator.
+        // use a new array.
+        watcher.childs.slice(0).forEach(unwatch);
+    }
+};
+
+/**
+ * add child watcher
+ */
+
+var addChildWatcher = exports.addChildWatcher = function addChildWatcher(parent, child) {
+    var index = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
+
+    if (!parent.childs) {
+        parent.childs = [];
+    }
+
+    if (index) {
+        parent.childs.push(child);
+    } else {
+        parent.childs.splice(index, 0, child);
+    }
+};
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _domParser = __webpack_require__(2);
+
+var _getterSetter = __webpack_require__(7);
+
+var _watcher = __webpack_require__(0);
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * component class
+ */
+var Component = function () {
+    function Component() {
+        _classCallCheck(this, Component);
+    }
+
+    _createClass(Component, null, [{
+        key: 'create',
+
+
+        /**
+         * create a component factory
+         * @param {String} name
+         * @param {options} options - {props, scope, methods, template}
+         */
+        value: function create(name, options) {
+
+            // transform computed property
+            if (options.computed) {
+                Object.keys(options.computed).forEach(function (key) {
+                    var func = options.computed[key];
+                    delete options.computed[key];
+
+                    Object.defineProperty(options, key, {
+                        get: func,
+                        enumerable: true,
+                        configurable: true
+                    });
+                });
+            }
+
+            var component = {
+                create: function create() {
+                    var instance = Object.create(options);
+                    if (instance.scope) {
+                        instance.scope = instance.scope();
+                        (0, _getterSetter.defineGetterSetter)(instance.scope);
+                    }
+                    Component.instances.push(instance);
+                    return instance;
+                }
+            };
+
+            Component.list[name] = component;
+
+            return component;
+        }
+
+        /**
+         * render to a dom node
+         * @param {String} name - component name
+         * @param {DOMNode} target - target dom node
+         */
+
+    }, {
+        key: 'render',
+        value: function render(compnentName, target, extra) {
+            var component = Component.list[compnentName].create();
+            target.innerHTML = component.tmpl;
+            component.$container = target;
+            Object.assign(component, extra);
+            // seems problematic
+            (0, _domParser.parseDom)(target, component, _watcher.Watchers.root);
+
+            if (component.mounted) {
+                component.mounted();
+            }
+        }
+    }]);
+
+    return Component;
+}();
+
+Component.instances = [];
+Component.list = {};
+
+exports.default = Component;
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
 exports.parseDom = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -84,7 +296,7 @@ var _expressionParser = __webpack_require__(6);
 
 var _bindNode = __webpack_require__(4);
 
-var _component2 = __webpack_require__(2);
+var _component2 = __webpack_require__(1);
 
 var _component3 = _interopRequireDefault(_component2);
 
@@ -113,6 +325,11 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
                         });
                     }
                 }
+            } else if (name === 'classname') {
+                var _parsed = (0, _expressionParser.parse)(str);
+                (0, _bindNode.bindNode)($dom, 'className', component, _parsed, {
+                    parentWatcher: parentWatcher
+                });
             } else if (name === 'for') {
                 // add comment anchor
                 var forAnchorStart = document.createComment('for');
@@ -158,11 +375,12 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
                     (0, _bindNode.bindNode)($dom, 'value', component, parsed, { parentWatcher: parentWatcher });
                 })();
             } else {
-                var _parsed = (0, _expressionParser.parseInterpolation)(str);
-                if ((typeof _parsed === 'undefined' ? 'undefined' : _typeof(_parsed)) !== 'object') {
-                    $dom.setAttribute(name, _parsed);
+                var _parsed2 = (0, _expressionParser.parseInterpolation)(str);
+                if ((typeof _parsed2 === 'undefined' ? 'undefined' : _typeof(_parsed2)) !== 'object') {
+                    $dom.setAttribute(name, _parsed2);
                 } else {
-                    (0, _bindNode.bindNode)($dom, 'attr', component, _parsed, { parentWatcher: parentWatcher });
+                    var _match = name.match(/(\w+-)?(\w+)/);
+                    (0, _bindNode.bindNode)($dom, 'attr', component, _parsed2, { parentWatcher: parentWatcher, name: _match[2] });
                 }
             }
         });
@@ -243,154 +461,6 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
         }
     }
 };
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.unwatch = exports.bindWatcherOnSetter = exports.triggerWatcher = exports.Watchers = exports.setStyle = undefined;
-
-var _diff = __webpack_require__(5);
-
-/**
- * update style attribute of a node, by an obj
- */
-var setStyle = exports.setStyle = function setStyle(node, styleObj) {
-    Object.assign(node.style, styleObj);
-};
-
-/**
- * all watchers, to be dirty-checked every time
- */
-var Watchers = exports.Watchers = {
-    root: {},
-    currentWatcherStack: []
-};
-
-/**
- * check watcher value change and update
- */
-var triggerWatcher = exports.triggerWatcher = function triggerWatcher(watcher) {
-    console.group('triggerWatcher', watcher.expression);
-    var newV = watcher.val();
-    if (watcher.isModel) {
-        watcher.update(undefined, newV || '');
-        watcher.oldV = newV;
-    } else if (!watcher.isArray && 0 !== newV) {
-        watcher.update(0, newV);
-        watcher.oldV = newV;
-    } else if (watcher.isArray) {
-        var oldV = watcher.oldV || [];
-        (0, _diff.diff)(oldV, newV).forEach(function (patch) {
-            (patch[0] === 1 ? watcher.update.add : watcher.update.remove)(patch[1], patch[2], patch[3]);
-        });
-        watcher.oldV = newV.slice(0);
-    }
-    console.groupEnd();
-};
-
-/**
- * add setter watchers
- * @param {Watcher} watcher - watcher to bind
- * @param {Array} location - watchers array in setter
- */
-var bindWatcherOnSetter = exports.bindWatcherOnSetter = function bindWatcherOnSetter(watcher, setterLocation) {
-    watcher.locations = watcher.locations || new Set();
-    if (!watcher.locations.has(setterLocation)) {
-        watcher.locations.add(setterLocation);
-    }
-
-    if (!setterLocation.has(watcher)) {
-        setterLocation.add(watcher);
-    }
-};
-
-/**
- * remove setter watchers
- * @param {Watcher} watcher - watcher to bind
- */
-var unwatch = exports.unwatch = function unwatch(watcher) {
-    var list = watcher.parent.childs;
-    list.splice(list.indexOf(watcher), 1);
-
-    watcher.locations.forEach(function (loc) {
-        loc.delete(watcher);
-    });
-};
-
-/***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _domParser = __webpack_require__(0);
-
-var _getterSetter = __webpack_require__(7);
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-/**
- * component class
- */
-var Component = function () {
-    function Component() {
-        _classCallCheck(this, Component);
-    }
-
-    _createClass(Component, null, [{
-        key: 'create',
-        value: function create(name, options) {
-
-            Component.list[name] = {
-                create: function create() {
-                    var instance = Object.create(options);
-                    if (instance.scope) {
-                        instance.scope = instance.scope();
-                        (0, _getterSetter.defineGetterSetter)(instance.scope);
-                    }
-                    Component.instances.push(instance);
-                    return instance;
-                }
-            };
-            return options;
-        }
-
-        /**
-         * render to a dom node
-         * @param {String} name - component name
-         * @param {DOMNode} target - target dom node
-         */
-
-    }, {
-        key: 'render',
-        value: function render(compnentName, target) {
-            var component = Component.list[compnentName].create();
-            target.innerHTML = component.tmpl;
-            (0, _domParser.parseDom)(target, component);
-        }
-    }]);
-
-    return Component;
-}();
-
-Component.instances = [];
-Component.list = {};
-
-exports.default = Component;
 
 /***/ }),
 /* 3 */
@@ -591,9 +661,11 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.bindNode = undefined;
 
-var _watcher = __webpack_require__(1);
+var _watcher = __webpack_require__(0);
 
-var _domParser = __webpack_require__(0);
+var _domParser = __webpack_require__(2);
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 /**
  * bind update function to a node & component
@@ -604,8 +676,10 @@ var _domParser = __webpack_require__(0);
  * @param {extra} extra - any other info
  */
 var bindNode = exports.bindNode = function bindNode(node, type, component, parsed, extra) {
+    var _newWatcher;
+
     var parentWatcher = extra.parentWatcher || _watcher.Watchers.root;
-    var closestArrayWatcher = extra.parentWatcher && extra.parentWatcher.isArray ? extra.parentWatcher : extra.closestArrayWatcher;
+    var closestArrayWatcher = extra.parentWatcher && extra.parentWatcher.isArray ? extra.parentWatcher : extra.parentWatcher.closestArrayWatcher ? extra.parentWatcher.closestArrayWatcher : extra.closestArrayWatcher;
     var newWatcher = null;
     switch (type) {
         case 'text':
@@ -628,7 +702,11 @@ var bindNode = exports.bindNode = function bindNode(node, type, component, parse
                 expression: parsed.expression,
                 val: parsed.update.bind(component),
                 update: function update(oldV, newV) {
-                    this.node.setAttribute(extra.name, newV);
+                    if (newV) {
+                        this.node.setAttribute(extra.name, newV);
+                    } else {
+                        this.node.removeAttribute(extra.name);
+                    }
                 }
             };
             break;
@@ -658,81 +736,110 @@ var bindNode = exports.bindNode = function bindNode(node, type, component, parse
                 isModel: true
             };
             break;
-        case 'for':
+        case 'className':
             newWatcher = {
+                node: node,
+                component: component,
+                closestArrayWatcher: closestArrayWatcher,
+                expression: parsed.expression,
+                val: parsed.update.bind(component),
+                update: function update(oldV, newV) {
+                    this.node.className = newV;
+                },
+
+                isModel: true
+            };
+            break;
+        case 'for':
+            newWatcher = (_newWatcher = {
                 expression: parsed.expression,
                 closestArrayWatcher: closestArrayWatcher,
                 isArray: true,
                 component: component,
-                val: parsed.update.bind(component),
-                update: {
-                    add: function add(arr, from, to) {
-                        console.log('for:add ' + from + ' to ' + to);
-                        var endAnchor = extra.forAnchorEnd;
-                        var startAnchor = extra.forAnchorStart;
-                        var parentNode = endAnchor.parentNode;
-                        var tmpl = extra.tmpl;
+                val: parsed.update.bind(component)
+            }, _defineProperty(_newWatcher, 'closestArrayWatcher', closestArrayWatcher), _defineProperty(_newWatcher, 'update', {
+                add: function add(arr, from, to) {
+                    console.log('for:add ' + from + ' to ' + to);
+                    var endAnchor = extra.forAnchorEnd;
+                    var startAnchor = extra.forAnchorStart;
+                    var parentNode = endAnchor.parentNode;
+                    var tmpl = extra.tmpl;
 
-                        var i = 0;
-                        var start = startAnchor;
-                        while (i <= to) {
-                            if (i >= from) {
-                                var newNode = tmpl.cloneNode('deep');
-                                var intermediate = Object.create(component);
-                                intermediate.__index = i;
-                                Object.defineProperty(intermediate, 'item', {
-                                    get: function get() {
-                                        var result = parsed.update.call(component)[this.__index];
-                                        return result;
-                                    },
-                                    set: function set(newValue) {
-                                        console.error('direct modify parents\' data');
-                                    },
+                    var i = 0;
+                    var start = startAnchor;
+                    while (i <= to) {
+                        if (i >= from) {
+                            var newNode = tmpl.cloneNode('deep');
+                            var intermediate = Object.create(component);
+                            intermediate.__index = i;
+                            Object.defineProperty(intermediate, 'item', {
+                                get: function get() {
+                                    var result = parsed.update.call(component)[this.__index];
+                                    return result;
+                                },
+                                set: function set(newValue) {
+                                    console.error('direct modify parents\' data');
+                                },
 
-                                    enumerable: true,
-                                    configurable: true });
-                                intermediate.isIntermediate = true;
+                                enumerable: true,
+                                configurable: true });
+                            intermediate.isIntermediate = true;
 
-                                (0, _domParser.parseDom)(newNode, intermediate, newWatcher);
-                                parentNode.insertBefore(newNode, start.nextSibling || endAnchor);
-                            }
-                            start = start.nextSibling;
-                            i++;
+                            var intermediateWatcher = {
+                                childs: [],
+                                component: intermediate,
+                                parent: newWatcher,
+                                closestArrayWatcher: newWatcher
+                            };
+
+                            (0, _watcher.addChildWatcher)(newWatcher, intermediateWatcher, i);
+                            (0, _domParser.parseDom)(newNode, intermediate, intermediateWatcher);
+                            parentNode.insertBefore(newNode, start.nextSibling || endAnchor);
                         }
-                    },
-
-                    remove: function remove(arr, from, to) {
-                        console.group('for:remove ' + from + ' to ' + to);
-                        var endAnchor = extra.forAnchorEnd;
-                        var parentNode = endAnchor.parentNode;
-                        var i = from;
-                        var target = endAnchor.parentNode.childNodes[i];
-                        var total = newWatcher.childs.length;
-
-                        // update child watchers
-                        while (i < total - to + from - 1) {
-                            console.log('set index', i + to - from + 1, 'to', i);
-                            newWatcher.childs[i + to - from + 1].component.__parent.__index = i;
-                            i++;
-                        }
-
-                        // delete dom & unwatch
-                        i = arr.length;
-                        var start = endAnchor;
-                        while (i >= from - 1) {
-                            if (i <= to - 1) {
-                                console.log('remove dom', i);
-                                parentNode.removeChild(start.nextSibling);
-                                console.log('unwatch', i);
-                                (0, _watcher.unwatch)(newWatcher.childs[i + 1]);
-                            }
-                            start = start.previousSibling;
-                            i--;
-                        }
-                        console.groupEnd();
+                        start = start.nextSibling;
+                        i++;
                     }
+
+                    // adjust watchers after insertions
+                    i = to + 1;
+                    while (i < arr.length) {
+                        console.log('set index', newWatcher.childs[i].component.__index, 'to', newWatcher.childs[i].component.__index + to - from + 1);
+                        newWatcher.childs[i].component.__index += to - from + 1;
+                        i += 1;
+                    }
+                },
+
+                remove: function remove(arr, from, to) {
+                    var endAnchor = extra.forAnchorEnd;
+                    var parentNode = endAnchor.parentNode;
+                    var i = from;
+                    var target = endAnchor.parentNode.childNodes[i];
+                    var total = newWatcher.childs.length;
+                    console.group('for:remove ' + from + ' to ' + to + ', total: ' + total);
+
+                    // update child watchers
+                    while (i < total - to + from - 1) {
+                        console.log('set index', i + to - from + 1, 'to', i);
+                        newWatcher.childs[i + to - from + 1].component.__index = i;
+                        i++;
+                    }
+
+                    // delete dom & unwatch
+                    i = arr.length;
+                    var start = endAnchor;
+                    while (i >= from - 1) {
+                        if (i <= to - 1) {
+                            console.log('remove dom', i + 1);
+                            parentNode.removeChild(start.nextSibling);
+                            console.log('unwatch', i + 1);
+                            (0, _watcher.unwatch)(newWatcher.childs[i + 1]);
+                        }
+                        start = start.previousSibling;
+                        i--;
+                    }
+                    console.groupEnd();
                 }
-            };
+            }), _newWatcher);
             break;
         default:
             break;
@@ -851,7 +958,6 @@ var parseInterpolation = exports.parseInterpolation = function parseInterpolatio
     var j = 0;
     var segs = [];
     var hasInterpolation = false;
-
     while (j < str.length) {
         if (str[j] === '{') {
             hasInterpolation = true;
@@ -886,12 +992,18 @@ var parseInterpolation = exports.parseInterpolation = function parseInterpolatio
             update: function update() {
                 var _this = this;
 
-                return segs.reduce(function (pre, curr) {
-                    if (typeof curr !== 'string') {
-                        return pre + curr.update.call(_this);
-                    }
-                    return pre + curr;
-                }, '');
+                // if only 1 interpolation, this prevent returning string
+                // such as "true" "false"
+                if (segs.length === 1 && hasInterpolation) {
+                    return segs[0].update.call(this);
+                } else {
+                    return segs.reduce(function (pre, curr) {
+                        if (typeof curr !== 'string') {
+                            return pre + curr.update.call(_this);
+                        }
+                        return pre + curr;
+                    }, '');
+                }
             }
         };
     } else {
@@ -913,7 +1025,7 @@ exports.defineGetterSetter = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-var _watcher = __webpack_require__(1);
+var _watcher = __webpack_require__(0);
 
 //override Array.prototype.push
 ['push', 'pop', 'shift', 'unshift', 'splice'].forEach(function (method) {
@@ -934,7 +1046,6 @@ var _watcher = __webpack_require__(1);
 var defineGetterSetter = exports.defineGetterSetter = function defineGetterSetter(data, __parent, __key) {
     var val = data;
     var type = typeof data === 'undefined' ? 'undefined' : _typeof(data);
-    var watchersToBind = new Set();
 
     if (['object'].includes(type) && data !== null && !data.__isGetterSetter) {
         if (Array.isArray(data)) {
@@ -943,6 +1054,7 @@ var defineGetterSetter = exports.defineGetterSetter = function defineGetterSette
             });
         } else {
             Object.keys(data).forEach(function (key) {
+                var watchersToBind = new Set();
                 var val = data[key];
                 Object.defineProperty(data, key, {
                     get: function get() {
@@ -953,7 +1065,6 @@ var defineGetterSetter = exports.defineGetterSetter = function defineGetterSette
                             // if data is array, then closestArrayWatcher must be the For
                             // and prevent gettersetter under For
                             if (Array.isArray(val) && closestArrayWatcher && closestArrayWatcher !== currWatcher) {} else {
-                                console.log('bind ' + currWatcher.expression + ' to ' + key);
                                 (0, _watcher.bindWatcherOnSetter)(currWatcher, watchersToBind);
                             }
                         }
@@ -962,13 +1073,19 @@ var defineGetterSetter = exports.defineGetterSetter = function defineGetterSette
                     },
                     set: function set(newV) {
                         // when setting new value, have to transform & pass __parent & __key
-                        defineGetterSetter(newV, val.__parent, val.__key);
+                        if (val && val.__parent) {
+                            defineGetterSetter(newV, val.__parent, val.__key);
+                        }
+
                         val = newV;
                         var iter = watchersToBind[Symbol.iterator]();
                         var watcher = null;
+                        console.group('set ', newV);
                         while (watcher = iter.next().value) {
+                            console.log('trigger ', watcher.expression);
                             (0, _watcher.triggerWatcher)(watcher);
                         }
+                        console.groupEnd('set ', newV, ' triggering ', watchersToBind);
                     },
 
                     enumerable: true,
@@ -1021,7 +1138,7 @@ exports.default = logger;
 "use strict";
 
 
-var _component = __webpack_require__(2);
+var _component = __webpack_require__(1);
 
 var _component2 = _interopRequireDefault(_component);
 

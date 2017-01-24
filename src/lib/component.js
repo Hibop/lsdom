@@ -1,5 +1,6 @@
 import { parseDom } from './domParser';
 import { defineGetterSetter } from './getterSetter';
+import { Watchers } from './watcher';
 
 /**
  * component class
@@ -13,6 +14,20 @@ class Component {
      */
     static create(name, options){
 
+        // transform computed property
+        if (options.computed){
+            Object.keys(options.computed).forEach(key => {
+                let func = options.computed[key];
+                delete options.computed[key];
+
+                Object.defineProperty(options, key, {
+                    get: func,
+                    enumerable : true,
+                    configurable : true
+                });
+            });
+        }
+
         let component = {
             create(){
                 let instance = Object.create(options);
@@ -24,6 +39,7 @@ class Component {
                 return instance;
             }
         }
+
         Component.list[name] = component;
 
         return component;
@@ -34,10 +50,17 @@ class Component {
      * @param {String} name - component name
      * @param {DOMNode} target - target dom node
      */
-    static render(compnentName, target){
+    static render(compnentName, target, extra){
         let component = Component.list[compnentName].create();
         target.innerHTML = component.tmpl;
-        parseDom(target, component);
+        component.$container = target;
+        Object.assign(component, extra);
+        // seems problematic
+        parseDom(target, component, Watchers.root);
+
+        if (component.mounted){
+            component.mounted();
+        }
     }
 }
 

@@ -24,6 +24,11 @@ export const parseDom = ($dom, component, parentWatcher) => {
                         });
                     }
                 }
+            } else if (name === 'classname'){
+                let parsed = parse(str);
+                bindNode($dom, 'className', component, parsed, {
+                    parentWatcher
+                });
             } else if (name === 'for'){
                 // add comment anchor
                 let forAnchorStart = document.createComment('for');
@@ -70,7 +75,8 @@ export const parseDom = ($dom, component, parentWatcher) => {
                 if (typeof parsed !== 'object'){
                     $dom.setAttribute(name, parsed);
                 } else {
-                    bindNode($dom, 'attr', component, parsed, {parentWatcher});
+                    let match = name.match(/(\w+-)?(\w+)/);
+                    bindNode($dom, 'attr', component, parsed, {parentWatcher, name: match[2]});
                 }
             }
         });
