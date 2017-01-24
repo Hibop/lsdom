@@ -69,15 +69,24 @@ export const unwatch = function(watcher){
             loc.delete(watcher);
         });
     }
+
+    if (watcher.childs){
+        watcher.childs.forEach(unwatch);
+    }
 }
 
 /**
  * add child watcher
  */
 
-export const addChildWatcher = function(parent, child){
+export const addChildWatcher = function(parent, child, index = null){
     if (!parent.childs) {
         parent.childs = [];
     }
-    parent.childs.push(child);
+
+    if (index){
+        parent.childs.push(child);
+    } else {
+        parent.childs.splice(index, 0, child);
+    }
 }

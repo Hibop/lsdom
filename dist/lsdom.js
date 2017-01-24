@@ -149,6 +149,10 @@ var unwatch = exports.unwatch = function unwatch(watcher) {
             loc.delete(watcher);
         });
     }
+
+    if (watcher.childs) {
+        watcher.childs.forEach(unwatch);
+    }
 };
 
 /**
@@ -156,10 +160,17 @@ var unwatch = exports.unwatch = function unwatch(watcher) {
  */
 
 var addChildWatcher = exports.addChildWatcher = function addChildWatcher(parent, child) {
+    var index = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
+
     if (!parent.childs) {
         parent.childs = [];
     }
-    parent.childs.push(child);
+
+    if (index) {
+        parent.childs.push(child);
+    } else {
+        parent.childs.splice(index, 0, child);
+    }
 };
 
 /***/ }),
@@ -241,11 +252,17 @@ var Component = function () {
 
     }, {
         key: 'render',
-        value: function render(compnentName, target) {
+        value: function render(compnentName, target, extra) {
             var component = Component.list[compnentName].create();
             target.innerHTML = component.tmpl;
+            component.$container = target;
+            Object.assign(component, extra);
             // seems problematic
             (0, _domParser.parseDom)(target, component, _watcher.Watchers.root);
+
+            if (component.mounted) {
+                component.mounted();
+            }
         }
     }]);
 
@@ -771,12 +788,20 @@ var bindNode = exports.bindNode = function bindNode(node, type, component, parse
                                 closestArrayWatcher: newWatcher
                             };
 
-                            (0, _watcher.addChildWatcher)(newWatcher, intermediateWatcher);
+                            (0, _watcher.addChildWatcher)(newWatcher, intermediateWatcher, i);
                             (0, _domParser.parseDom)(newNode, intermediate, intermediateWatcher);
                             parentNode.insertBefore(newNode, start.nextSibling || endAnchor);
                         }
                         start = start.nextSibling;
                         i++;
+                    }
+
+                    // adjust watchers after insertions
+                    i = to + 1;
+                    while (i < arr.length) {
+                        console.log('set index', newWatcher.childs[i].component.__index, 'to', newWatcher.childs[i].component.__index + to - from + 1);
+                        newWatcher.childs[i].component.__index += to - from + 1;
+                        i += 1;
                     }
                 },
 
@@ -800,9 +825,9 @@ var bindNode = exports.bindNode = function bindNode(node, type, component, parse
                     var start = endAnchor;
                     while (i >= from - 1) {
                         if (i <= to - 1) {
-                            console.log('remove dom', i);
+                            console.log('remove dom', i + 1);
                             parentNode.removeChild(start.nextSibling);
-                            console.log('unwatch', i);
+                            console.log('unwatch', i + 1);
                             (0, _watcher.unwatch)(newWatcher.childs[i + 1]);
                         }
                         start = start.previousSibling;
@@ -1044,7 +1069,10 @@ var defineGetterSetter = exports.defineGetterSetter = function defineGetterSette
                     },
                     set: function set(newV) {
                         // when setting new value, have to transform & pass __parent & __key
-                        defineGetterSetter(newV, val.__parent, val.__key);
+                        if (val && val.__parent) {
+                            defineGetterSetter(newV, val.__parent, val.__key);
+                        }
+
                         val = newV;
                         var iter = watchersToBind[Symbol.iterator]();
                         var watcher = null;

@@ -64,16 +64,14 @@ LSDom.Component.create('todo-app', {
 
     scope: () => {
         return {
-            todos: [{name: 'a', done: true}, {name: 'b', done: false}],
-            tab: 'completed'
+            todos: [{name: 'a', done: true}, {name: 'b', done: false}]
         }
     },
 
     computed: {
         todosFiltered(){
-            return this.scope.todos.filter(item => this.scope.tab === 'all'
-                || (this.scope.tab === 'active' && item.done === false)
-                || (this.scope.tab === 'completed' && item.done === true)
+            return this.scope.todos.filter(item => (this.route.tab === 'active' && item.done === false)
+                || (this.route.tab === 'completed' && item.done === true) || this.route.tab === undefined
             );
         },
     },
@@ -89,5 +87,61 @@ LSDom.Component.create('todo-app', {
     }
 });
 
+LSDom.Component.create('router', {
+    scope: () => {
+        return {
+            map: {
+                '/:tab?': 'todo-app'
+            },
+            route: {
+                tab: null
+            }
+        }
+    },
+    mounted(){
+        // when hashchange
+        window.onhashchange = this.update.bind(this);
+        this.update();
+
+        // transform route to
+        LSDom.Component.render('todo-app', this.$container, {
+            route: this.scope.route
+        });
+    },
+
+    update(){
+        let params = this._match();
+        if (params){
+            Object.assign(this.scope.route, params);
+        }
+    },
+
+    _match(){
+        let params = {};
+        // init router
+        Object.keys(this.scope.map).some(route => {
+             // transform route to regex
+            let keys = [];
+            let path = location.hash.slice(1);
+            let regstr = route.replace(/:\w+/g, (a, b) => {
+                keys.push(a.slice(1));
+                return '(\\w+)';
+            });
+
+            let match = path.match(new RegExp(regstr));
+            if (match){
+                keys.forEach((key, i) => {
+                    params[key] = match[i + 1];
+                });
+                return true;
+            } else {
+                return null;
+            }
+        });
+
+        return params;
+    }
+});
+
 // init
-LSDom.Component.render('todo-app', document.getElementById('app'));
+LSDom.Component.render('router', document.getElementById('app'));

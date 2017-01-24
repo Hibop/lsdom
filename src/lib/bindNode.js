@@ -122,12 +122,21 @@ export const bindNode = (node, type, component, parsed, extra) => {
                                 closestArrayWatcher: newWatcher
                             };
 
-                            addChildWatcher(newWatcher, intermediateWatcher);
+                            addChildWatcher(newWatcher, intermediateWatcher, i);
                             parseDom(newNode, intermediate, intermediateWatcher);
                             parentNode.insertBefore(newNode, start.nextSibling || endAnchor);
                         }
                         start = start.nextSibling;
                         i++;
+                    }
+
+                    // adjust watchers after insertions
+                    i = to + 1;
+                    while (i < arr.length){
+                        console.log('set index', newWatcher.childs[i].component.__index, 'to',
+                            newWatcher.childs[i].component.__index + to - from + 1);
+                        newWatcher.childs[i].component.__index += to - from + 1;
+                        i += 1;
                     }
                 },
 
@@ -151,9 +160,9 @@ export const bindNode = (node, type, component, parsed, extra) => {
                     let start = endAnchor;
                     while (i >= from - 1){
                         if (i <= to - 1){
-                            console.log('remove dom', i);
+                            console.log('remove dom', i + 1);
                             parentNode.removeChild(start.nextSibling);
-                            console.log('unwatch', i);
+                            console.log('unwatch', i + 1);
                             unwatch(newWatcher.childs[i + 1]);
                         }
                         start = start.previousSibling;

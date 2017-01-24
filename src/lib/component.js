@@ -50,11 +50,17 @@ class Component {
      * @param {String} name - component name
      * @param {DOMNode} target - target dom node
      */
-    static render(compnentName, target){
+    static render(compnentName, target, extra){
         let component = Component.list[compnentName].create();
         target.innerHTML = component.tmpl;
+        component.$container = target;
+        Object.assign(component, extra);
         // seems problematic
         parseDom(target, component, Watchers.root);
+
+        if (component.mounted){
+            component.mounted();
+        }
     }
 }
 

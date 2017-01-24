@@ -47,7 +47,10 @@ export const defineGetterSetter = function(data, __parent, __key){
                     },
                     set(newV){
                         // when setting new value, have to transform & pass __parent & __key
-                        defineGetterSetter(newV, val.__parent, val.__key);
+                        if (val && val.__parent){
+                            defineGetterSetter(newV, val.__parent, val.__key);
+                        }
+
                         val = newV;
                         let iter = watchersToBind[Symbol.iterator]();
                         let watcher = null;
