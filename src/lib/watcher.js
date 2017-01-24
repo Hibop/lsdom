@@ -61,6 +61,7 @@ export const bindWatcherOnSetter = function(watcher, setterLocation){
  * @param {Watcher} watcher - watcher to bind
  */
 export const unwatch = function(watcher){
+    console.log('unwatch', watcher);
     let list = watcher.parent.childs;
     list.splice(list.indexOf(watcher), 1);
 
@@ -71,7 +72,10 @@ export const unwatch = function(watcher){
     }
 
     if (watcher.childs){
-        watcher.childs.forEach(unwatch);
+        // avoid using forEach, since deleting happens in unwatch
+        // babel transform for ... of to iterator.
+        // use a new array.
+        watcher.childs.slice(0).forEach(unwatch);
     }
 }
 
@@ -87,6 +91,6 @@ export const addChildWatcher = function(parent, child, index = null){
     if (index){
         parent.childs.push(child);
     } else {
-        parent.childs.splice(index, 0, child);
+        parent.childs.splice(index, 0, child)
     }
 }

@@ -141,6 +141,7 @@ var bindWatcherOnSetter = exports.bindWatcherOnSetter = function bindWatcherOnSe
  * @param {Watcher} watcher - watcher to bind
  */
 var unwatch = exports.unwatch = function unwatch(watcher) {
+    console.log('unwatch', watcher);
     var list = watcher.parent.childs;
     list.splice(list.indexOf(watcher), 1);
 
@@ -151,7 +152,10 @@ var unwatch = exports.unwatch = function unwatch(watcher) {
     }
 
     if (watcher.childs) {
-        watcher.childs.forEach(unwatch);
+        // avoid using forEach, since deleting happens in unwatch
+        // babel transform for ... of to iterator.
+        // use a new array.
+        watcher.childs.slice(0).forEach(unwatch);
     }
 };
 
@@ -1042,7 +1046,6 @@ var _watcher = __webpack_require__(0);
 var defineGetterSetter = exports.defineGetterSetter = function defineGetterSetter(data, __parent, __key) {
     var val = data;
     var type = typeof data === 'undefined' ? 'undefined' : _typeof(data);
-    var watchersToBind = new Set();
 
     if (['object'].includes(type) && data !== null && !data.__isGetterSetter) {
         if (Array.isArray(data)) {
@@ -1051,6 +1054,7 @@ var defineGetterSetter = exports.defineGetterSetter = function defineGetterSette
             });
         } else {
             Object.keys(data).forEach(function (key) {
+                var watchersToBind = new Set();
                 var val = data[key];
                 Object.defineProperty(data, key, {
                     get: function get() {
@@ -1076,9 +1080,12 @@ var defineGetterSetter = exports.defineGetterSetter = function defineGetterSette
                         val = newV;
                         var iter = watchersToBind[Symbol.iterator]();
                         var watcher = null;
+                        console.group('set ', newV);
                         while (watcher = iter.next().value) {
+                            console.log('trigger ', watcher.expression);
                             (0, _watcher.triggerWatcher)(watcher);
                         }
+                        console.groupEnd('set ', newV, ' triggering ', watchersToBind);
                     },
 
                     enumerable: true,

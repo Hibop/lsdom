@@ -19,7 +19,6 @@ import { Watchers, bindWatcherOnSetter, triggerWatcher } from './watcher';
 export const defineGetterSetter = function(data, __parent, __key){
     let val = data;
     let type = typeof data;
-    let watchersToBind = new Set();
 
     if (['object'].includes(type) && data !== null && !data.__isGetterSetter){
         if (Array.isArray(data)){
@@ -28,6 +27,7 @@ export const defineGetterSetter = function(data, __parent, __key){
             });
         } else {
             Object.keys(data).forEach(key => {
+                let watchersToBind = new Set();
                 let val = data[key];
                 Object.defineProperty(data, key, {
                     get(){
@@ -54,9 +54,12 @@ export const defineGetterSetter = function(data, __parent, __key){
                         val = newV;
                         let iter = watchersToBind[Symbol.iterator]();
                         let watcher = null;
+                        console.group('set ', newV);
                         while (watcher = iter.next().value){
+                            console.log('trigger ', watcher.expression);
                             triggerWatcher(watcher);
                         }
+                        console.groupEnd('set ', newV, ' triggering ', watchersToBind);
                     },
                     enumerable : true,
                     configurable : true

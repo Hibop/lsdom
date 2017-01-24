@@ -50,13 +50,13 @@ LSDom.Component.create('todo-app', {
             <span class="todo-count"><strong>{{scope.todos.length}}</strong> items left</span>
             <ul class="filters">
                 <li>
-                    <a class="selected" href="#/">All</a>
+                    <a classname="this.route.tab === 'all' ? 'selected' : ''" href="#/">All</a>
                 </li>
                 <li>
-                    <a href="#/active">Active</a>
+                    <a classname="this.route.tab === 'active' ? 'selected' : ''" href="#/active">Active</a>
                 </li>
                 <li>
-                    <a href="#/completed">Completed</a>
+                    <a classname="this.route.tab === 'completed' ? 'selected' : ''" href="#/completed">Completed</a>
                 </li>
             </ul>
         </footer>
