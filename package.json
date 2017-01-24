@@ -9,7 +9,7 @@
     "webpack": "^2.2.0"
   },
   "name": "lsdom",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "lsdom - a dom library",
   "main": "src/index.js",
   "browser": "dist/lsdom.js",
