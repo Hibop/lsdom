@@ -47,7 +47,7 @@ LSDom.Component.create('todo-app', {
             </ul>
         </section>
         <footer class="footer" style="display: block;">
-            <span class="todo-count"><strong>{{scope.todos.length}}</strong> items left</span>
+            <span class="todo-count"><strong>{{activeTodos.length}}</strong> items left</span>
             <ul class="filters">
                 <li>
                     <a classname="this.route.tab === 'all' ? 'selected' : ''" href="#/">All</a>
@@ -71,9 +71,12 @@ LSDom.Component.create('todo-app', {
     computed: {
         todosFiltered(){
             return this.scope.todos.filter(item => (this.route.tab === 'active' && item.done === false)
-                || (this.route.tab === 'completed' && item.done === true) || this.route.tab === undefined
+                || (this.route.tab === 'completed' && item.done === true) || !this.route.tab
             );
         },
+        activeTodos(){
+            return this.scope.todos.filter(item => item.done === true);
+        }
     },
 
     remove(item){
@@ -118,11 +121,11 @@ LSDom.Component.create('router', {
 
     _match(){
         let params = {};
+        let path = location.hash.slice(1);
         // init router
         Object.keys(this.scope.map).some(route => {
              // transform route to regex
             let keys = [];
-            let path = location.hash.slice(1);
             let regstr = route.replace(/:\w+/g, (a, b) => {
                 keys.push(a.slice(1));
                 return '(\\w+)';
