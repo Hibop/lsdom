@@ -484,6 +484,68 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
 "use strict";
 
 
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+// router is a component with mapping of path & components
+exports.default = {
+    create: function create(options) {
+        // pass null to generate instance
+        return LSDom.Component.create('route', {
+            scope: function scope() {
+                return {
+                    map: options,
+                    route: {
+                        params: {}
+                    }
+                };
+            },
+            mounted: function mounted() {
+                // when hashchange
+                window.onhashchange = this.update.bind(this);
+                this.update();
+
+                // transform route to
+                LSDom.Component.render(this.scope.map[this.scope.route.params.regex], this.$container, {
+                    route: this.scope.route
+                });
+            },
+            update: function update() {
+                var params = this._match();
+                if (params) {
+                    this.scope.route.params = params;
+                }
+            },
+            _match: function _match() {
+                var params = {};
+                var path = location.hash.slice(1) || "/";
+                // init router
+                Object.keys(this.scope.map).some(function (route) {
+                    // transform route to regex
+                    var keys = [];
+                    var regstr = route.replace(/:\w+/g, function (a, b) {
+                        keys.push(a.slice(1));
+                        return '(\\w+)';
+                    });
+
+                    var match = path.match(new RegExp(regstr));
+                    if (match) {
+                        keys.forEach(function (key, i) {
+                            params[key] = match[i + 1];
+                        });
+                        params.regex = route;
+                        return true;
+                    } else {
+                        return null;
+                    }
+                });
+
+                return params;
+            }
+        });
+    }
+};
+
 /***/ }),
 /* 4 */
 /***/ (function(module, exports, __webpack_require__) {

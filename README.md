@@ -12,6 +12,12 @@ You can see the blogs here : http://tech.colla.me/tag/A_ToDo_App
 
 https://sunderls.github.io/lsdom/
 
+# usage
+
+```
+> npm install ls-dom --save-dev
+```
+
 
 #license
 *This software is released under the MIT License, see LICENSE*
