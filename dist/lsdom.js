@@ -63,7 +63,7 @@
 /******/ 	__webpack_require__.p = "";
 
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 9);
+/******/ 	return __webpack_require__(__webpack_require__.s = 10);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -78,7 +78,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.addChildWatcher = exports.unwatch = exports.bindWatcherOnSetter = exports.triggerWatcher = exports.Watchers = exports.setStyle = undefined;
 
-var _diff = __webpack_require__(5);
+var _diff = __webpack_require__(6);
 
 /**
  * update style attribute of a node, by an obj
@@ -192,7 +192,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 var _domParser = __webpack_require__(2);
 
-var _getterSetter = __webpack_require__(7);
+var _getterSetter = __webpack_require__(8);
 
 var _watcher = __webpack_require__(0);
 
@@ -250,22 +250,29 @@ var Component = function () {
 
         /**
          * render to a dom node
-         * @param {String} name - component name
+         * @param {String or Component} componentOrHtml - component or html
          * @param {DOMNode} target - target dom node
          */
 
     }, {
         key: 'render',
-        value: function render(compnentName, target, extra) {
-            var component = Component.list[compnentName].create();
-            target.innerHTML = component.tmpl;
-            component.$container = target;
-            Object.assign(component, extra);
-            // seems problematic
-            (0, _domParser.parseDom)(target, component, _watcher.Watchers.root);
+        value: function render(componentOrHtml, target, extra) {
+            // if html is passed parsed with rootComponent
+            if (typeof componentOrHtml === 'string') {
+                target.innerHTML = componentOrHtml;
+                (0, _domParser.parseDom)(target, Component.root, _watcher.Watchers.root);
+                // if component
+            } else {
+                var component = componentOrHtml.create();
+                target.innerHTML = component.tmpl;
+                component.$container = target;
+                Object.assign(component, extra);
+                // seems problematic
+                (0, _domParser.parseDom)(target, component, _watcher.Watchers.root);
 
-            if (component.mounted) {
-                component.mounted();
+                if (component.mounted) {
+                    component.mounted();
+                }
             }
         }
     }]);
@@ -275,6 +282,8 @@ var Component = function () {
 
 Component.instances = [];
 Component.list = {};
+
+Component.root = Component.create('root', {});
 
 exports.default = Component;
 
@@ -292,9 +301,9 @@ exports.parseDom = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-var _expressionParser = __webpack_require__(6);
+var _expressionParser = __webpack_require__(7);
 
-var _bindNode = __webpack_require__(4);
+var _bindNode = __webpack_require__(5);
 
 var _component2 = __webpack_require__(1);
 
@@ -451,6 +460,12 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
                         }
                     })();
                 }
+
+                // if component has mounted hook
+                nextComponent.$container = $dom.parentNode;
+                if (nextComponent.mounted) {
+                    nextComponent.mounted();
+                }
             }
         }
 
@@ -464,6 +479,13 @@ var parseDom = exports.parseDom = function parseDom($dom, component, parentWatch
 
 /***/ }),
 /* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/***/ }),
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -650,7 +672,7 @@ process.umask = function () {
 };
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -861,7 +883,7 @@ var bindNode = exports.bindNode = function bindNode(node, type, component, parse
 };
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -872,7 +894,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.diff = undefined;
 
-var _logger = __webpack_require__(8);
+var _logger = __webpack_require__(9);
 
 var _logger2 = _interopRequireDefault(_logger);
 
@@ -929,7 +951,7 @@ var diff = exports.diff = function diff(from, to) {
 };
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1012,7 +1034,7 @@ var parseInterpolation = exports.parseInterpolation = function parseInterpolatio
 };
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1108,7 +1130,7 @@ var defineGetterSetter = exports.defineGetterSetter = function defineGetterSette
 };
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1129,10 +1151,10 @@ if (typeof process !== 'undefined') {
 }
 
 exports.default = logger;
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(4)))
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1142,10 +1164,15 @@ var _component = __webpack_require__(1);
 
 var _component2 = _interopRequireDefault(_component);
 
+var _router = __webpack_require__(3);
+
+var _router2 = _interopRequireDefault(_router);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 window.LSDom = {
-	Component: _component2.default
+  Component: _component2.default,
+  Router: _router2.default
 };
 
 /***/ })

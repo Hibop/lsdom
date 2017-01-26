@@ -35,7 +35,7 @@ LSDom.Component.create('add-todo', {
     }
 });
 
-LSDom.Component.create('todo-app', {
+const TodoApp = LSDom.Component.create('todo-app', {
     tmpl: `<div class="todoapp">
         <header>
             <h1>todos</h1>
@@ -50,7 +50,7 @@ LSDom.Component.create('todo-app', {
             <span class="todo-count"><strong>{{activeTodos.length}}</strong> items left</span>
             <ul class="filters">
                 <li>
-                    <a classname="this.route.tab === 'all' ? 'selected' : ''" href="#/">All</a>
+                    <a classname="this.route.tab === 'all' || !this.route.tab ? 'selected' : ''" href="#/">All</a>
                 </li>
                 <li>
                     <a classname="this.route.tab === 'active' ? 'selected' : ''" href="#/active">Active</a>
@@ -90,11 +90,11 @@ LSDom.Component.create('todo-app', {
     }
 });
 
-LSDom.Component.create('router', {
+const router = LSDom.Component.create('router', {
     scope: () => {
         return {
             map: {
-                '/:tab?': 'todo-app'
+                '/:tab?': TodoApp
             },
             route: {
                 tab: null
@@ -107,7 +107,7 @@ LSDom.Component.create('router', {
         this.update();
 
         // transform route to
-        LSDom.Component.render('todo-app', this.$container, {
+        LSDom.Component.render(TodoApp, this.$container, {
             route: this.scope.route
         });
     },
@@ -147,4 +147,4 @@ LSDom.Component.create('router', {
 });
 
 // init
-LSDom.Component.render('router', document.getElementById('app'));
+LSDom.Component.render(router, document.getElementById('app'));

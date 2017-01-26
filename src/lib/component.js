@@ -47,24 +47,35 @@ class Component {
 
     /**
      * render to a dom node
-     * @param {String} name - component name
+     * @param {String or Component} componentOrHtml - component or html
      * @param {DOMNode} target - target dom node
      */
-    static render(compnentName, target, extra){
-        let component = Component.list[compnentName].create();
-        target.innerHTML = component.tmpl;
-        component.$container = target;
-        Object.assign(component, extra);
-        // seems problematic
-        parseDom(target, component, Watchers.root);
+    static render(componentOrHtml, target, extra){
+        // if html is passed parsed with rootComponent
+        if (typeof componentOrHtml === 'string'){
+            target.innerHTML = componentOrHtml;
+            parseDom(target, Component.root, Watchers.root);
+        // if component
+        } else {
+            let component = componentOrHtml.create();
+            target.innerHTML = component.tmpl;
+            component.$container = target;
+            Object.assign(component, extra);
+            // seems problematic
+            parseDom(target, component, Watchers.root);
 
-        if (component.mounted){
-            component.mounted();
+            if (component.mounted){
+                component.mounted();
+            }
         }
+
     }
 }
 
+
 Component.instances = [];
 Component.list = {};
+
+Component.root = Component.create('root', {});
 
 export default Component;

@@ -143,6 +143,12 @@ export const parseDom = ($dom, component, parentWatcher) => {
                         nextComponent.__parent = component;
                     }
                 }
+
+                // if component has mounted hook
+                nextComponent.$container = $dom.parentNode;
+                if (nextComponent.mounted){
+                    nextComponent.mounted();
+                }
             }
         }
 
